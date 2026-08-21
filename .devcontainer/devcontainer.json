@@ -1,0 +1,57 @@
+{
+  "name": "AutoPatch-CI Dev Environment",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  "forwardPorts": [8000, 3000],
+
+  "portsAttributes": {
+    "8000": {
+      "label": "Backend API (FastAPI)",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Frontend Dashboard (Next.js)",
+      "onAutoForward": "openBrowser"
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.extraPaths": ["backend/src"],
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff"
+        },
+        "terminal.integrated.env.linux": {
+          "PYTHONPATH": "${workspaceFolder}/backend/src"
+        }
+      }
+    }
+  },
+
+  "remoteEnv": {
+    "PYTHONPATH": "${containerWorkspaceFolder}/backend/src"
+  }
+}
