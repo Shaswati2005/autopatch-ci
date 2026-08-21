@@ -1,0 +1,21 @@
+# ==========================================
+# AutoPatch-CI Root .gitignore
+# ==========================================
+
+# ---- OS & Editor Artifacts ----
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+*.iml
+
+# ---- Local Environment Variables ----
+.env
+.env.local
+.env.*.local
+*.env
+
+# ---- Docker ----
+docker-compose.override.yml
