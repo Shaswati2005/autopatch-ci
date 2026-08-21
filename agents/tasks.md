@@ -16,7 +16,7 @@ This board tracks cross-agent tasks, work-in-progress locks, and feature roadmap
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`TSK-001`** | `agents/` | Initialize multi-agent protocol, mailboxes, and context | `@agent-frontend` | `[DONE]` | P0 | 2026-08-21 |
 | **`TSK-002`** | `frontend` | Add live polling & auto-refresh status indicator in UI | `@agent-frontend` | `[IN_PROGRESS]` | P1 | 2026-08-21 |
-| **`TSK-003`** | `backend` | Implement WebSocket / SSE trace stream endpoint for low latency | `@agent-backend` | `[BACKLOG]` | P1 | 2026-08-21 |
+| **`TSK-003`** | `backend` | Implement WebSocket / SSE trace stream endpoint for low latency | `@agent-backend` | `[IN_PROGRESS]` | P1 | 2026-08-21 |
 | **`TSK-004`** | `backend` | Enhance Gemini prompt with few-shot self-healing examples | `@agent-backend` | `[BACKLOG]` | P2 | 2026-08-21 |
 | **`TSK-005`** | `frontend` | Render rich Markdown diff & test logs in reasoning trace cards | `@agent-frontend` | `[BACKLOG]` | P1 | 2026-08-21 |
 | **`TSK-006`** | `backend` | Integrate Cloud Build sandbox verification fallback simulator | `@agent-backend` | `[BACKLOG]` | P2 | 2026-08-21 |
