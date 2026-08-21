@@ -1,15 +1,19 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import DashboardPage from '../app/page';
+import App from '../App';
 
-describe('DashboardPage Integration', () => {
+const DashboardPage = App;
+
+describe('App Integration', () => {
   beforeEach(() => {
-    vi.stubGlobal('EventSource', vi.fn(() => ({
-      addEventListener: vi.fn(),
-      onerror: null,
-      close: vi.fn(),
-    })));
+    class MockEventSource {
+      addEventListener = vi.fn();
+      onerror = null;
+      close = vi.fn();
+      readyState = 0;
+    }
+    vi.stubGlobal('EventSource', MockEventSource);
 
     vi.stubGlobal(
       'fetch',

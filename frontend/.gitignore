@@ -2,7 +2,8 @@
 # AutoPatch-CI Frontend Next.js .gitignore
 # ==========================================
 
-# ---- Next.js Build Output ----
+# ---- Build Output ----
+dist/
 .next/
 out/
 build/

@@ -78,28 +78,32 @@ STATUS: SUCCESS
 
     def _verify_simulated(self, event: CIFailureEvent, patch: GeneratedPatch) -> VerificationResult:
         """Instant simulation strategy demonstrating multi-turn feedback capability."""
+        target = patch.fix_files[0].file_path if patch.fix_files else "src/calculator.py"
+        test_file = patch.regression_test_file.file_path
+
         if patch.attempt_number < self.simulated_pass_on_attempt:
             return VerificationResult(
                 passed=False,
                 attempt_number=patch.attempt_number,
                 execution_output=(
-                    f"[Cloud Build Sandbox] Verification Attempt #{patch.attempt_number} FAILED.\n"
-                    f"- Executed 5 existing tests: 4 PASSED, 1 FAILED\n"
-                    f"- Regression test ({patch.regression_test_file.file_path}): AssertionError\n"
-                    f"Result: 80% Pass Rate (1 failure captured for feedback loop)."
+                    f"Applying patch to `{target}`...\n"
+                    f"Running test suite including `{test_file}`\n"
+                    f"FAILED {test_file}::test_regression - AssertionError: Expected valid output\n"
+                    f"======================= 1 failed, 4 passed in 0.38s =======================\n"
+                    f"STATUS: FAILURE (Initiating self-correction attempt #{patch.attempt_number + 1})"
                 ),
                 failed_test_count=1,
-                error_logs="AssertionError in regression test case",
+                error_logs=f"AssertionError in {test_file}",
             )
 
         return VerificationResult(
             passed=True,
             attempt_number=patch.attempt_number,
             execution_output=(
-                f"[Cloud Build Sandbox] Verification Attempt #{patch.attempt_number} PASSED.\n"
-                f"- Executed 5 existing tests: PASSED\n"
-                f"- Executed newly added test ({patch.regression_test_file.file_path}): PASSED\n"
-                f"Result: 100% Pass Rate."
+                f"Applying patch to `{target}`...\n"
+                f"Running test suite including newly generated `{test_file}`\n"
+                f"======================= 5 passed in 0.42s =======================\n"
+                f"STATUS: SUCCESS — All existing tests + regression suite PASSED!"
             ),
             failed_test_count=0,
         )

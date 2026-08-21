@@ -154,3 +154,82 @@ async def test_call_gemini_api_method(monkeypatch):
     MockModelResponse.text = None  # type: ignore[assignment]
     empty_result = await adapter._call_gemini_api("test prompt")
     assert empty_result == ""
+
+
+@pytest.mark.asyncio
+async def test_gemini_fallback_scenarios():
+    adapter = GeminiLLMPatcherAdapter(api_key="mock-gemini-key")
+
+    # SyntaxError Scenario
+    syntax_analysis = LogAnalysisResult(
+        run_id="run-1", error_summary="SyntaxError: invalid syntax", error_type="SyntaxError",
+        target_file_path="src/parser/engine.py", target_line_number=45, raw_stack_trace="def parse_payload(:\n  ^"
+    )
+    syntax_patch = await adapter.generate_patch_and_test(syntax_analysis, "")
+    assert "SyntaxError" in syntax_patch.rationale
+    assert syntax_patch.fix_files[0].file_path == "src/parser/engine.py"
+
+    # TypeScript Scenario
+    ts_analysis = LogAnalysisResult(
+        run_id="run-2", error_summary="Type string is not assignable to type number", error_type="TypeScriptError (TS2322)",
+        target_file_path="src/components/Card.tsx", target_line_number=34, raw_stack_trace="src/components/Card.tsx(34,12): error TS2322"
+    )
+    ts_patch = await adapter.generate_patch_and_test(ts_analysis, "")
+    assert "TypeScript" in ts_patch.rationale
+    assert ts_patch.fix_files[0].file_path == "src/components/Card.tsx"
+
+    # Jest Scenario
+    jest_analysis = LogAnalysisResult(
+        run_id="run-3", error_summary="ReferenceError: localStorage is not defined", error_type="ReferenceError",
+        target_file_path="src/auth/login.test.ts", target_line_number=52, raw_stack_trace="ReferenceError: localStorage is not defined"
+    )
+    jest_patch = await adapter.generate_patch_and_test(jest_analysis, "")
+    assert "ReferenceError" in jest_patch.rationale
+    assert jest_patch.fix_files[0].file_path == "src/auth/login.test.ts"
+
+
+@pytest.mark.asyncio
+async def test_call_gemini_api_httpx_branch(monkeypatch):
+    import sys
+    # Remove google from sys.modules to trigger ImportError branch
+    monkeypatch.delitem(sys.modules, "google", raising=False)
+    monkeypatch.delitem(sys.modules, "google.genai", raising=False)
+
+    adapter = GeminiLLMPatcherAdapter(api_key="valid-test-key")
+
+    class MockResponse:
+        status_code = 200
+        def json(self):
+            return {
+                "candidates": [
+                    {"content": {"parts": [{"text": '{"rationale": "httpx ok"}'}]}}
+                ]
+            }
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            pass
+        async def post(self, url, json):
+            return MockResponse()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+
+    res = await adapter._call_gemini_api("test prompt")
+    assert res == '{"rationale": "httpx ok"}'
+
+    # Test error status
+    class MockErrorResponse:
+        status_code = 500
+        text = "Internal error"
+
+    async def mock_post_err(self, url, **kwargs):
+        return MockErrorResponse()
+
+    MockAsyncClient.post = mock_post_err  # type: ignore[assignment]
+    with pytest.raises(RuntimeError):
+        await adapter._call_gemini_api("test prompt")

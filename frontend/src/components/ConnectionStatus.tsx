@@ -3,46 +3,65 @@ import React from 'react';
 export type StreamStatus = 'connecting' | 'streaming' | 'polling' | 'disconnected' | 'idle';
 
 
-const STATUS_CONFIG: Record<StreamStatus, { label: string; color: string; bg: string; border: string; dot: string; pulse: boolean }> = {
+const STATUS_CONFIG: Record<StreamStatus, {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  dot: string;
+  glow: string;
+  pulse: boolean;
+  spin: boolean;
+}> = {
   streaming: {
     label: 'LIVE',
-    color: 'var(--green)',
-    bg: 'var(--green-dim)',
-    border: 'rgba(34,197,94,0.25)',
-    dot: 'var(--green)',
+    color: '#4ade80',
+    bg: 'rgba(74,222,128,0.06)',
+    border: 'rgba(74,222,128,0.25)',
+    dot: '#4ade80',
+    glow: 'rgba(74,222,128,0.5)',
     pulse: true,
+    spin: false,
   },
   polling: {
     label: 'POLLING',
     color: 'var(--amber)',
-    bg: 'var(--amber-dim)',
-    border: 'rgba(245,158,11,0.25)',
+    bg: 'rgba(245,158,11,0.06)',
+    border: 'rgba(245,158,11,0.20)',
     dot: 'var(--amber)',
+    glow: 'rgba(245,158,11,0.4)',
     pulse: false,
+    spin: false,
   },
   connecting: {
     label: 'CONNECTING',
-    color: 'var(--blue)',
-    bg: 'var(--blue-dim)',
-    border: 'rgba(59,130,246,0.25)',
-    dot: 'var(--blue)',
+    color: '#60a5fa',
+    bg: 'rgba(59,130,246,0.06)',
+    border: 'rgba(59,130,246,0.20)',
+    dot: '#60a5fa',
+    glow: 'rgba(59,130,246,0.5)',
     pulse: false,
+    spin: true,
   },
   disconnected: {
     label: 'OFFLINE',
-    color: 'var(--red)',
-    bg: 'var(--red-dim)',
-    border: 'rgba(239,68,68,0.25)',
-    dot: 'var(--red)',
+    color: '#f87171',
+    bg: 'rgba(248,113,113,0.06)',
+    border: 'rgba(248,113,113,0.20)',
+    dot: '#f87171',
+    glow: 'rgba(248,113,113,0.4)',
     pulse: false,
+    spin: false,
   },
   idle: {
     label: 'IDLE',
     color: 'var(--text-muted)',
     bg: 'transparent',
-    border: 'var(--border)',
+    border: 'rgba(255,255,255,0.07)',
     dot: 'var(--text-muted)',
+    glow: 'transparent',
     pulse: false,
+    spin: false,
   },
 };
 
@@ -62,23 +81,50 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ status, runI
         border: `1px solid ${cfg.border}`,
         color: cfg.color,
         fontFamily: "'JetBrains Mono', monospace",
-        transition: 'all 0.2s',
+        backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s var(--ease-spring)',
+        letterSpacing: '0.06em',
+        fontSize: 10,
       }}
       data-testid="connection-status"
     >
-      <span
-        className="w-1.5 h-1.5 rounded-full"
-        style={{
-          background: cfg.dot,
-          boxShadow: cfg.pulse ? `0 0 0 0 ${cfg.dot}` : undefined,
-          animation: cfg.pulse ? 'pulse-ring 1.5s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite' : undefined,
-        }}
-        data-testid={status === 'streaming' ? 'streaming-indicator' : status === 'polling' ? 'polling-indicator' : undefined}
-      />
+      {cfg.spin ? (
+        /* Spinning arc for CONNECTING */
+        <span
+          className="w-2 h-2 rounded-full border border-t-transparent animate-spin-slow"
+          style={{
+            borderColor: cfg.dot,
+            borderTopColor: 'transparent',
+          }}
+          data-testid={status === 'connecting' ? undefined : undefined}
+        />
+      ) : (
+        /* Dot with optional pulse ring */
+        <span
+          className="w-1.5 h-1.5 rounded-full inline-block"
+          style={{
+            background: cfg.dot,
+            boxShadow: cfg.pulse ? `0 0 6px ${cfg.glow}` : 'none',
+            animation: cfg.pulse
+              ? 'pulseRing 1.8s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite'
+              : undefined,
+          }}
+          data-testid={
+            status === 'streaming' ? 'streaming-indicator'
+            : status === 'polling' ? 'polling-indicator'
+            : undefined
+          }
+        />
+      )}
+
       {cfg.label}
+
       {status === 'streaming' && runId && (
-        <span style={{ color: 'var(--text-muted)', marginLeft: 2 }}>#{runId}</span>
+        <span style={{ color: 'var(--text-muted)', marginLeft: 2, fontSize: 9 }}>
+          #{runId}
+        </span>
       )}
     </div>
   );
 };
+

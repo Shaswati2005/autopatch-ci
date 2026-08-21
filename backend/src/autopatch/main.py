@@ -135,10 +135,13 @@ async def stream_run_traces(run_id: str) -> StreamingResponse:
     """Stream real-time diagnostic trace steps using Server-Sent Events (SSE)."""
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        async for trace in global_trace_store.stream_traces(run_id):
-            trace_json = json.dumps(trace.model_dump(mode="json"))
-            yield f"event: trace\ndata: {trace_json}\n\n"
-        yield "event: done\ndata: {}\n\n"
+        try:
+            async for trace in global_trace_store.stream_traces(run_id):
+                trace_json = json.dumps(trace.model_dump(mode="json"))
+                yield f"event: trace\ndata: {trace_json}\n\n"
+            yield "event: done\ndata: {}\n\n"
+        except (GeneratorExit, Exception):
+            pass
 
     return StreamingResponse(
         event_generator(),
