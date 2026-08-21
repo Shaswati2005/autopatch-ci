@@ -21,8 +21,13 @@ lint:
 	$env:PYTHONPATH="backend/src"; ruff check backend/src backend/tests
 	$env:PYTHONPATH="backend/src"; mypy backend/src
 
-test:
+test: test-backend test-frontend
+
+test-backend:
 	$env:PYTHONPATH="backend/src"; python -m pytest backend/tests -v
+
+test-frontend:
+	cd frontend && npm test
 
 run-backend:
 	$env:PYTHONPATH="backend/src"; uvicorn autopatch.main:app --host 0.0.0.0 --port 8000 --reload
