@@ -1,4 +1,4 @@
-﻿"""Unit tests for Cloud Build Sandbox Verification Adapter."""
+"""Unit tests for Cloud Build Sandbox Verification Adapter."""
 
 import pytest
 
@@ -63,17 +63,46 @@ async def test_sandbox_verification_failure_capture(sample_event, sample_patch):
 
 
 @pytest.mark.asyncio
-async def test_cloud_build_adapter_gcp_mode(sample_event, sample_patch):
-    verifier = CloudBuildVerificationAdapter()
-    result = await verifier._verify_gcp_cloud_build(sample_event, sample_patch)
-    assert result.passed is True
-    assert "Cloud Build run" in result.execution_output
-    assert "STATUS: SUCCESS" in result.execution_output
+async def test_cloud_build_adapter_gcp_mode(sample_event, sample_patch, monkeypatch):
+    verifier = CloudBuildVerificationAdapter(simulated_pass_on_attempt=2)
+
+    # Attempt 1 -> Fail
+    fail_result = await verifier._verify_gcp_cloud_build(sample_event, sample_patch)
+    assert fail_result.passed is False
+    assert "STATUS: FAILURE" in fail_result.execution_output
+
+    # Attempt 2 -> Success
+    sample_patch.attempt_number = 2
+    pass_result = await verifier._verify_gcp_cloud_build(sample_event, sample_patch)
+    assert pass_result.passed is True
+    assert "STATUS: SUCCESS" in pass_result.execution_output
+
+    # Test via verify_patch dispatch
+    from autopatch.config.settings import settings
+
+    monkeypatch.setattr(settings, "verification_strategy", "cloud_build")
+    dispatched = await verifier.verify_patch(sample_event, sample_patch)
+    assert dispatched.passed is True
 
 
 @pytest.mark.asyncio
-async def test_cloud_build_adapter_docker_mode(sample_event, sample_patch):
-    verifier = CloudBuildVerificationAdapter()
-    result = await verifier._verify_local_docker(sample_event, sample_patch)
-    assert result.passed is True
-    assert "Docker local container verification PASSED." in result.execution_output
+async def test_cloud_build_adapter_docker_mode(sample_event, sample_patch, monkeypatch):
+    verifier = CloudBuildVerificationAdapter(simulated_pass_on_attempt=2)
+
+    # Attempt 1 -> Fail
+    fail_result = await verifier._verify_local_docker(sample_event, sample_patch)
+    assert fail_result.passed is False
+    assert "FAILED" in fail_result.execution_output
+
+    # Attempt 2 -> Success
+    sample_patch.attempt_number = 2
+    pass_result = await verifier._verify_local_docker(sample_event, sample_patch)
+    assert pass_result.passed is True
+    assert "PASSED" in pass_result.execution_output
+
+    # Test via verify_patch dispatch
+    from autopatch.config.settings import settings
+
+    monkeypatch.setattr(settings, "verification_strategy", "local_docker")
+    dispatched = await verifier.verify_patch(sample_event, sample_patch)
+    assert dispatched.passed is True

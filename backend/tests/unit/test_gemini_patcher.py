@@ -1,4 +1,4 @@
-﻿"""Unit tests for Gemini LLM Patcher Adapter."""
+"""Unit tests for Gemini LLM Patcher Adapter."""
 
 import json
 
@@ -90,3 +90,67 @@ def test_gemini_parse_llm_response(sample_analysis):
     assert patch.regression_test_file.file_path == "tests/test_payment_regression.py"
     assert patch.rationale == "Handled None transaction ID gracefully."
     assert patch.attempt_number == 2
+
+
+@pytest.mark.asyncio
+async def test_gemini_api_call_success_and_exception_fallback(sample_analysis, monkeypatch):
+    adapter = GeminiLLMPatcherAdapter(api_key="real-gemini-key-12345")
+
+    # 1. Successful API call path
+    mock_json = json.dumps({
+        "fix_file_path": "src/calculator.py",
+        "fix_content": "def calculate_tax(): return 0.0",
+        "test_file_path": "tests/test_auto_generated_regression.py",
+        "test_content": "def test_tax(): assert True",
+        "rationale": "Fixed via Gemini API",
+    })
+
+    async def mock_call(prompt: str) -> str:
+        return mock_json
+
+    monkeypatch.setattr(adapter, "_call_gemini_api", mock_call)
+    patch_success = await adapter.generate_patch_and_test(sample_analysis, "code...", attempt=1)
+    assert patch_success.rationale == "Fixed via Gemini API"
+
+    # 2. Exception path -> falls back to deterministic patch
+    async def mock_call_error(prompt: str) -> str:
+        raise RuntimeError("Quota exceeded or network timeout")
+
+    monkeypatch.setattr(adapter, "_call_gemini_api", mock_call_error)
+    patch_fallback = await adapter.generate_patch_and_test(sample_analysis, "code...", attempt=1)
+    assert "Attempt 1" in patch_fallback.rationale
+
+
+@pytest.mark.asyncio
+async def test_call_gemini_api_method(monkeypatch):
+    adapter = GeminiLLMPatcherAdapter(api_key="test-key")
+
+    class MockModelResponse:
+        text = '{"rationale": "ok"}'
+
+    class MockModels:
+        def generate_content(self, model: str, contents: str):
+            return MockModelResponse()
+
+    class MockGenaiClient:
+        def __init__(self, api_key: str):
+            self.models = MockModels()
+
+    import sys
+    import types
+
+    mock_google = types.ModuleType("google")
+    mock_genai = types.ModuleType("google.genai")
+    mock_genai.Client = MockGenaiClient  # type: ignore[attr-defined]
+    mock_google.genai = mock_genai  # type: ignore[attr-defined]
+
+    monkeypatch.setitem(sys.modules, "google", mock_google)
+    monkeypatch.setitem(sys.modules, "google.genai", mock_genai)
+
+    result = await adapter._call_gemini_api("test prompt")
+    assert result == '{"rationale": "ok"}'
+
+    # Also test empty text branch
+    MockModelResponse.text = None  # type: ignore[assignment]
+    empty_result = await adapter._call_gemini_api("test prompt")
+    assert empty_result == ""

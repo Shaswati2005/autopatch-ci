@@ -1,4 +1,4 @@
-﻿"""Unit tests for CI Log Parser Adapter."""
+"""Unit tests for CI Log Parser Adapter."""
 
 import pytest
 
@@ -85,6 +85,45 @@ def test_parse_unknown_log_graceful_fallback():
     noisy_result = parser.parse_log_text("random noisy build output without stack trace", "run-noisy")
     assert noisy_result.error_type == "UnhandledBuildError"
     assert noisy_result.target_file_path is not None
+
+
+def test_parse_generic_python_traceback():
+    parser = CILogParserAdapter()
+    raw_log = """
+Traceback (most recent call last):
+  File "src/server/config.py", line 88, in load_settings
+    ValueError: Database port must be between 1 and 65535
+"""
+    result = parser.parse_log_text(raw_log, "run-generic-tb")
+    assert result.target_file_path == "src/server/config.py"
+    assert result.target_line_number == 88
+    assert result.error_type == "ValueError"
+    assert "ValueError: Database port must be between 1 and 65535" in result.error_summary
+
+
+def test_parse_pytest_line_fallback_and_jest_default():
+    parser = CILogParserAdapter()
+
+    # Pytest with separate file line
+    pytest_diff_file = """
+File "src/helpers.py", line 99, in helper_fn
+FAILED src/calc.py::test_calc - ZeroDivisionError: division by zero
+"""
+    result_pt = parser.parse_log_text(pytest_diff_file, "run-pt-fallback")
+    assert result_pt.target_file_path == "src/calc.py"
+    assert result_pt.target_line_number == 99
+    assert result_pt.error_type == "ZeroDivisionError"
+
+    # Jest without 'at' location
+    jest_no_at = """
+FAIL src/auth/login.test.ts
+  ● Login Flow
+    TypeError: Cannot read properties of undefined
+"""
+    result_jest = parser.parse_log_text(jest_no_at, "run-jest-no-at")
+    assert result_jest.target_file_path == "src/auth/login.test.ts"
+    assert result_jest.target_line_number == 15
+    assert result_jest.error_type == "TypeError"
 
 
 @pytest.mark.asyncio

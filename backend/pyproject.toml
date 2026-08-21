@@ -39,3 +39,21 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 files = ["src"]
+
+[tool.coverage.run]
+source = ["autopatch"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abstractmethod",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+    "pass"
+]
+show_missing = true
+fail_under = 100
+
