@@ -92,3 +92,37 @@ jobs:
           file: ./frontend/Dockerfile
           push: false
           tags: autopatch-frontend:ci-check
+
+  # ── AutoPatch-CI Notification ────────────────────────────────────────────
+  # Fires when ANY job above fails.  Sends a structured failure event to
+  # the AutoPatch-CI backend so it can diagnose and open a fix PR.
+  notify-autopatch:
+    name: Notify AutoPatch-CI on Failure
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    if: failure()
+
+    steps:
+      - name: Send CI failure event to AutoPatch-CI
+        env:
+          AUTOPATCH_WEBHOOK_URL: ${{ secrets.AUTOPATCH_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$AUTOPATCH_WEBHOOK_URL" ]; then
+            echo "AUTOPATCH_WEBHOOK_URL secret not set – skipping notification"
+            exit 0
+          fi
+
+          curl -s -X POST "$AUTOPATCH_WEBHOOK_URL/api/webhooks/github" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repo":          "${{ github.repository }}",
+              "branch":        "${{ github.ref_name }}",
+              "commit_sha":    "${{ github.sha }}",
+              "workflow_name": "${{ github.workflow }}",
+              "run_id":        "${{ github.run_id }}",
+              "run_url":       "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "failed_jobs":   ["backend-test", "frontend-test"]
+            }' \
+            --max-time 10 || echo "AutoPatch-CI webhook call failed (non-fatal)"
+
