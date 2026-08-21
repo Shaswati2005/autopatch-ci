@@ -1,13 +1,6 @@
 {
   "name": "AutoPatch-CI Dev Environment",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11",
-
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-  },
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
 
   "forwardPorts": [8000, 3000],
 
@@ -32,12 +25,9 @@
         "charliermarsh.ruff",
         "bradlc.vscode-tailwindcss",
         "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "ms-azuretools.vscode-docker",
-        "github.vscode-github-actions"
+        "esbenp.prettier-vscode"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
         "python.analysis.extraPaths": ["backend/src"],
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
