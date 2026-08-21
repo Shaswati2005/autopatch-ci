@@ -1,9 +1,11 @@
 """FastAPI Application Entry Point for AutoPatch-CI."""
 
-from typing import Any, Dict
+import json
+from typing import Any, AsyncGenerator, Dict
 
 from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from autopatch.adapters.cloud_build import CloudBuildVerificationAdapter
@@ -120,4 +122,26 @@ def get_runs() -> Dict[str, Any]:
 async def get_run_traces(run_id: str) -> Dict[str, Any]:
     """Retrieve execution trace steps for a specific workflow run ID."""
     traces = await global_trace_store.get_traces(run_id)
-    return {"run_id": run_id, "traces": [t.model_dump() for t in traces]}
+    return {"run_id": run_id, "traces": [t.model_dump(mode="json") for t in traces]}
+
+
+@app.get("/api/traces/{run_id}/stream")
+async def stream_run_traces(run_id: str) -> StreamingResponse:
+    """Stream real-time diagnostic trace steps using Server-Sent Events (SSE)."""
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        async for trace in global_trace_store.stream_traces(run_id):
+            trace_json = json.dumps(trace.model_dump(mode="json"))
+            yield f"event: trace\ndata: {trace_json}\n\n"
+        yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+

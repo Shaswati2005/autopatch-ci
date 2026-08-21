@@ -74,7 +74,7 @@ class AutoPatchHealingPipeline:
                 analysis=log_analysis,
                 code_context=log_analysis.code_context or "",
                 attempt=attempt,
-                previous_feedback=previous_feedback
+                previous_feedback=previous_feedback,
             )
             final_patch = patch
 
@@ -86,7 +86,13 @@ class AutoPatchHealingPipeline:
                     f"Generated code fix for `{patch.fix_files[0].file_path}` "
                     f"and regression test `{patch.regression_test_file.file_path}`"
                 ),
-                {"rationale": patch.rationale}
+                {
+                    "diff": patch.fix_files[0].patched_content,
+                    "target_file": patch.fix_files[0].file_path,
+                    "test_file": patch.regression_test_file.file_path,
+                    "test_diff": patch.regression_test_file.patched_content,
+                    "rationale": patch.rationale,
+                },
             )
 
             # Stage 4: VERIFYING
@@ -107,7 +113,11 @@ class AutoPatchHealingPipeline:
                     PipelineStage.VERIFIED,
                     "4. Verification Succeeded",
                     "All existing tests + newly added regression test passed successfully!",
-                    {"status": "SUCCESS"}
+                    {
+                        "status": "SUCCESS",
+                        "test_output": verification.execution_output,
+                        "attempt": verification.attempt_number,
+                    },
                 )
             else:
                 attempt += 1
@@ -117,7 +127,12 @@ class AutoPatchHealingPipeline:
                     PipelineStage.VERIFYING,
                     f"4. Verification Failed (Attempt #{attempt - 1})",
                     "Sandbox tests failed. Initiating self-correction feedback loop for Gemini...",
-                    {"failed_count": str(verification.failed_test_count)}
+                    {
+                        "status": "FAILED",
+                        "test_output": verification.execution_output,
+                        "failed_count": verification.failed_test_count,
+                        "attempt": verification.attempt_number,
+                    },
                 )
 
         if not verified or not final_patch or not final_verification:
@@ -126,6 +141,7 @@ class AutoPatchHealingPipeline:
                 PipelineStage.FAILED,
                 "Pipeline Escalation",
                 f"Reached maximum retries ({settings.max_patch_attempts}). Flagged for human review.",
+                {"error": f"Max retries ({settings.max_patch_attempts}) exhausted."},
             )
             return False, None
 
@@ -136,7 +152,12 @@ class AutoPatchHealingPipeline:
             PipelineStage.PR_CREATED,
             "5. GitHub PR Opened",
             f"Successfully opened Pull Request #{pr_info.pr_number} on branch `{pr_info.branch_name}`",
-            {"pr_url": pr_info.html_url}
+            {
+                "pr_url": pr_info.html_url,
+                "pr_number": pr_info.pr_number,
+                "branch": pr_info.branch_name,
+                "title": pr_info.title,
+            },
         )
 
         return True, pr_info

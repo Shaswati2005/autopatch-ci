@@ -28,17 +28,17 @@ class GitHubAppAdapter(GitProviderPort):
         pr_number = random.randint(100, 999)
         pr_url = f"https://github.com/{event.repo}/pull/{pr_number}"
 
-        body_markdown = self._generate_pr_body(event, patch, verification)
+        body_markdown = self.generate_pr_body(event, patch, verification)
 
         return PullRequestInfo(
             pr_number=pr_number,
             html_url=pr_url,
             branch_name=branch_name,
             title=f"🤖 [AutoPatch-CI] Fix build failure in {event.workflow_name} (Run #{event.run_id})",
-            body_markdown=body_markdown
+            body_markdown=body_markdown,
         )
 
-    def _generate_pr_body(
+    def generate_pr_body(
         self,
         event: CIFailureEvent,
         patch: GeneratedPatch,
@@ -47,6 +47,7 @@ class GitHubAppAdapter(GitProviderPort):
         fix_files_list = "\n".join([f"- `{f.file_path}`" for f in patch.fix_files])
         
         return f"""## 🛠️ AutoPatch-CI Autonomous Fix Summary
+
 
 An automated CI build failure was detected and repaired by **AutoPatch-CI** using **Gemini 3.5 Flash**
 and verified in **Google Cloud Build**.

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -82,4 +82,4 @@ class DiagnosticTraceStep(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     title: str
     detail: str
-    payload: Optional[Dict[str, str]] = None
+    payload: Optional[Dict[str, Any]] = None

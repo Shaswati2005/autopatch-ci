@@ -36,6 +36,75 @@ class GeminiLLMPatcherAdapter(LLMPatcherPort):
 
         return self._generate_fallback_patch(analysis, attempt)
 
+    def construct_prompt(
+        self,
+        analysis: LogAnalysisResult,
+        code_context: str,
+        attempt: int = 1,
+        feedback: Optional[str] = None,
+    ) -> str:
+        """Construct structured prompt with few-shot repair examples and multi-turn feedback."""
+        few_shot_examples = """
+### Few-Shot Example 1 (Null Reference / TypeError):
+**Failing Error:** TypeError: unsupported operand type(s) in src/billing.py:18
+**Original Code:**
+```python
+def compute_discount(total: float, discount_rate: float) -> float:
+    return total * discount_rate
+```
+**Expected Solution JSON:**
+```json
+{
+  "fix_file_path": "src/billing.py",
+  "fix_content": "def fix(): pass\\n",
+  "test_file_path": "tests/test_billing_regression.py",
+  "test_content": "def test_fix(): assert True\\n",
+  "rationale": "Added None guard."
+}
+```
+"""
+        multi_turn_section = ""
+        if feedback:
+            multi_turn_section = f"""
+### ⚠️ PREVIOUS ATTEMPT FEEDBACK (Attempt {attempt - 1} Failed):
+Sandbox verification failed with the following error output:
+```text
+{feedback}
+```
+Please carefully diagnose why the previous patch failed in the sandbox and provide a corrected patch.
+"""
+
+        return f"""You are AutoPatch-CI, an autonomous CI/CD self-healing agent powered by Gemini 3.5 Flash.
+Your mission is to analyze CI build failures, pinpoint the root cause, and generate a dual-artifact repair:
+1. A minimal, surgical source code fix for the failing module.
+2. A brand-new regression unit test that validates the fix and prevents future CI regressions.
+
+{few_shot_examples}
+
+---
+### 🔍 CURRENT FAILURE CONTEXT:
+- **Error Summary:** {analysis.error_summary}
+- **Error Type:** {analysis.error_type}
+- **Target File:** {analysis.target_file_path} (Line {analysis.target_line_number})
+- **Attempt Number:** {attempt}
+
+#### Stack Trace:
+```text
+{analysis.raw_stack_trace}
+```
+
+#### Code Context:
+```text
+{code_context}
+```
+{multi_turn_section}
+---
+### 📋 INSTRUCTIONS:
+1. Provide the fixed source code for `{analysis.target_file_path or 'src/module.py'}`.
+2. Provide a new standalone regression test file (e.g. `tests/test_auto_generated_regression.py`).
+3. Output MUST be valid JSON with keys: `fix_file_path`, `fix_content`, `test_file_path`, `test_content`, `rationale`.
+"""
+
     def _construct_prompt(
         self,
         analysis: LogAnalysisResult,
@@ -43,25 +112,8 @@ class GeminiLLMPatcherAdapter(LLMPatcherPort):
         attempt: int,
         feedback: Optional[str],
     ) -> str:
-        return f"""
-You are an autonomous DevOps CI/CD Repair Agent.
-A build failure occurred with error: {analysis.error_summary}
-Target File: {analysis.target_file_path} (Line {analysis.target_line_number})
-Stack Trace:
-{analysis.raw_stack_trace}
+        return self.construct_prompt(analysis, code_context, attempt, feedback)
 
-Code Context:
-{code_context}
-
-Attempt Number: {attempt}
-Previous Sandbox Failure Feedback: {feedback or 'None'}
-
-INSTRUCTIONS:
-1. Provide the fixed source code for {analysis.target_file_path}.
-2. Provide a BRAND NEW regression unit test file (e.g. `tests/test_auto_generated_regression.py`)
-   covering the edge case that caused the failure.
-3. Return JSON output with keys: 'fix_file_path', 'fix_content', 'test_file_path', 'test_content', 'rationale'.
-"""
 
     async def _call_gemini_api(self, prompt: str) -> str:
         """Helper to invoke google-genai library if installed."""

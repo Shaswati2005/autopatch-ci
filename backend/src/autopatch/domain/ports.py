@@ -1,7 +1,7 @@
 """Domain Ports (Interfaces) for Hexagonal Architecture."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import AsyncGenerator, List, Optional
 
 from autopatch.domain.models import (
     CIFailureEvent,
@@ -81,3 +81,9 @@ class TraceStorePort(ABC):
     async def get_traces(self, run_id: str) -> List[DiagnosticTraceStep]:
         """Retrieve all trace steps recorded for a workflow run."""
         pass
+
+    @abstractmethod
+    def stream_traces(self, run_id: str) -> AsyncGenerator[DiagnosticTraceStep, None]:
+        """Stream trace steps asynchronously as they occur."""
+        pass
+
