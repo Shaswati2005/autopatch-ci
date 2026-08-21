@@ -1,0 +1,51 @@
+name: Deploy Frontend Service to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: autopatch-frontend-service
+  IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/autopatch-frontend:latest
+
+jobs:
+  deploy-frontend:
+    name: Deploy Next.js Dashboard Frontend Microservice
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build & Push Frontend Container Image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="${{ secrets.BACKEND_API_URL }}" \
+            -t $IMAGE_NAME ./frontend
+          docker push $IMAGE_NAME
+
+      - name: Deploy Frontend Service to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image $IMAGE_NAME \
+            --platform managed \
+            --region $REGION \
+            --allow-unauthenticated \
+            --port 3000
