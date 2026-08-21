@@ -13,19 +13,76 @@ interface RunSidebarProps {
   branch: string;
   onRepoChange: (v: string) => void;
   onBranchChange: (v: string) => void;
+  customLog?: string;
+  onCustomLogChange?: (v: string) => void;
 }
 
 const PRESETS = [
-  { name: 'Pytest IndexError (calculator.py)', repo: 'acme/autopatch-demo', branch: 'main', workflow_name: 'CI / Pytest Suite' },
-  { name: 'TypeError in Auth Token Validator',  repo: 'acme/auth-service',   branch: 'main', workflow_name: 'CI / Auth Integration' },
-  { name: 'Async Timeout in Worker Queue',      repo: 'acme/queue-worker',   branch: 'develop', workflow_name: 'CI / Worker E2E' },
+  {
+    name: 'Python TypeError (calculator.py)',
+    repo: 'Shaswati2005/autopatch-ci',
+    branch: 'main',
+    workflow_name: 'CI / Backend Test Suite',
+    raw_log: `==================================== FAILURES ====================================
+FAILED src/calculator.py::test_calculate_tax - TypeError: unsupported operand type(s) for *: 'NoneType' and 'float'
+File "src/calculator.py", line 28, in calculate_tax
+    return price * 0.15`,
+  },
+  {
+    name: 'Python SyntaxError (engine.py)',
+    repo: 'Shaswati2005/autopatch-ci',
+    branch: 'main',
+    workflow_name: 'CI / Build Verification',
+    raw_log: `Traceback (most recent call last):
+  File "src/parser/engine.py", line 45
+    def parse_payload(:
+                      ^
+SyntaxError: invalid syntax`,
+  },
+  {
+    name: 'TypeScript TS2322 Type Error',
+    repo: 'Shaswati2005/autopatch-ci',
+    branch: 'main',
+    workflow_name: 'CI / Type Checker',
+    raw_log: `src/components/Card.tsx(34,12): error TS2322: Type 'string' is not assignable to type 'number'.
+npm ERR! code 1`,
+  },
+  {
+    name: 'Jest ReferenceError (login.test.ts)',
+    repo: 'Shaswati2005/autopatch-ci',
+    branch: 'main',
+    workflow_name: 'CI / Jest E2E Tests',
+    raw_log: `FAIL src/auth/login.test.ts
+  ● Login Flow › should authenticate user
+    ReferenceError: localStorage is not defined
+      at Object.<anonymous> (src/auth/login.test.ts:52:7)`,
+  },
+  {
+    name: 'Custom Stack Trace (Input your own)',
+    repo: 'Shaswati2005/autopatch-ci',
+    branch: 'main',
+    workflow_name: 'CI / Custom Workflow',
+    raw_log: '',
+  },
 ];
 
 export { PRESETS };
 
 export const RunSidebar: React.FC<RunSidebarProps> = ({
-  runs, selectedRun, onSelect, onRefresh, onTrigger, triggering,
-  scenarioIndex, onScenarioChange, repo, branch, onRepoChange, onBranchChange,
+  runs,
+  selectedRun,
+  onSelect,
+  onRefresh,
+  onTrigger,
+  triggering,
+  scenarioIndex,
+  onScenarioChange,
+  repo,
+  branch,
+  onRepoChange,
+  onBranchChange,
+  customLog,
+  onCustomLogChange,
 }) => {
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -36,19 +93,26 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
       >
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-            Trigger Simulation
+            Start Autonomous Repair
           </h2>
           <span
             className="text-xs px-2 py-0.5 rounded-md"
-            style={{ background: 'var(--accent-glow)', color: 'var(--accent)', border: '1px solid rgba(124,106,245,0.2)', fontFamily: 'monospace' }}
+            style={{
+              background: 'rgba(34,197,94,0.1)',
+              color: '#22c55e',
+              border: '1px solid rgba(34,197,94,0.25)',
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
           >
-            demo
+            Live Agent
           </span>
         </div>
 
         {/* Scenario selector */}
         <div className="space-y-1.5">
-          <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Failure Scenario</label>
+          <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            Failure Type / Scenario
+          </label>
           <select
             value={scenarioIndex}
             onChange={(e) => onScenarioChange(Number(e.target.value))}
@@ -62,7 +126,9 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
             }}
           >
             {PRESETS.map((p, i) => (
-              <option key={i} value={i}>{p.name}</option>
+              <option key={i} value={i}>
+                {p.name}
+              </option>
             ))}
           </select>
         </div>
@@ -70,10 +136,13 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
         {/* Repo / Branch inputs */}
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Repo</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Repository
+            </label>
             <input
               value={repo}
               onChange={(e) => onRepoChange(e.target.value)}
+              placeholder="owner/repo"
               className="w-full text-xs rounded-lg px-3 py-2 outline-none"
               style={{
                 background: 'var(--bg-elevated)',
@@ -84,10 +153,13 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Branch</label>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Branch
+            </label>
             <input
               value={branch}
               onChange={(e) => onBranchChange(e.target.value)}
+              placeholder="main"
               className="w-full text-xs rounded-lg px-3 py-2 outline-none"
               style={{
                 background: 'var(--bg-elevated)',
@@ -99,13 +171,39 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
           </div>
         </div>
 
+        {/* Custom stack trace input */}
+        {onCustomLogChange && (
+          <div className="space-y-1">
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              {scenarioIndex === 4 ? 'Paste Custom CI Failure Log' : 'CI Error Log Preview'}
+            </label>
+            <textarea
+              rows={3}
+              value={customLog ?? PRESETS[scenarioIndex]?.raw_log ?? ''}
+              onChange={(e) => onCustomLogChange(e.target.value)}
+              placeholder="Paste raw stack trace or pytest failure log..."
+              className="w-full text-xs rounded-lg px-3 py-2 outline-none resize-none"
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '11px',
+                lineHeight: '1.4',
+              }}
+            />
+          </div>
+        )}
+
         {/* Trigger button */}
         <button
           onClick={onTrigger}
           disabled={triggering}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
           style={{
-            background: triggering ? 'var(--bg-elevated)' : 'linear-gradient(135deg, var(--accent), #a855f7)',
+            background: triggering
+              ? 'var(--bg-elevated)'
+              : 'linear-gradient(135deg, var(--accent), #a855f7)',
             color: triggering ? 'var(--text-muted)' : '#fff',
             boxShadow: triggering ? 'none' : '0 4px 20px var(--accent-glow)',
             cursor: triggering ? 'not-allowed' : 'pointer',
@@ -115,11 +213,14 @@ export const RunSidebar: React.FC<RunSidebarProps> = ({
         >
           {triggering ? (
             <>
-              <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin-slow" style={{ borderColor: 'var(--text-muted)', borderTopColor: 'transparent' }} />
-              Simulating failure...
+              <span
+                className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin-slow"
+                style={{ borderColor: 'var(--text-muted)', borderTopColor: 'transparent' }}
+              />
+              Repairing failure...
             </>
           ) : (
-            <>⚡ Trigger CI Failure</>
+            <>⚡ Start Autonomous Repair</>
           )}
         </button>
       </div>

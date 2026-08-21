@@ -11,8 +11,8 @@ class CILogParserAdapter(LogParserPort):
     """Parses raw build logs to extract target failure file, stack trace, and line numbers."""
 
     async def fetch_and_parse_logs(self, event: CIFailureEvent) -> LogAnalysisResult:
-        # Simulated raw CI build log fetch (e.g. from GitHub Actions / Cloud Build REST API)
-        raw_log = self._simulate_ci_log_fetch(event)
+        # Use provided raw failure log if present, else fetch / simulate
+        raw_log = event.raw_log if event.raw_log else self._simulate_ci_log_fetch(event)
         return self.parse_log_text(raw_log, event.run_id)
 
     def parse_log_text(self, raw_log: str, run_id: str = "demo-run") -> LogAnalysisResult:

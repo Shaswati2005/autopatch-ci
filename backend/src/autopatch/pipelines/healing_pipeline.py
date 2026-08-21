@@ -157,6 +157,7 @@ class AutoPatchHealingPipeline:
                 "pr_number": pr_info.pr_number,
                 "branch": pr_info.branch_name,
                 "title": pr_info.title,
+                "repo": event.repo,
             },
         )
 

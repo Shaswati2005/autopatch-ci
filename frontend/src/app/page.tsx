@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [repo, setRepo] = useState(PRESETS[0].repo);
   const [branch, setBranch] = useState(PRESETS[0].branch);
+  const [customLog, setCustomLog] = useState<string>(PRESETS[0].raw_log || '');
   const eventSourceRef = useRef<EventSource | null>(null);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -116,6 +117,7 @@ export default function DashboardPage() {
     setScenarioIndex(i);
     setRepo(PRESETS[i].repo);
     setBranch(PRESETS[i].branch);
+    setCustomLog(PRESETS[i].raw_log || '');
   };
 
   const handleTrigger = async () => {
@@ -124,7 +126,12 @@ export default function DashboardPage() {
       const res = await fetch(`${API_BASE}/api/trigger-demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo, branch, workflow_name: PRESETS[scenarioIndex].workflow_name }),
+        body: JSON.stringify({
+          repo,
+          branch,
+          workflow_name: PRESETS[scenarioIndex].workflow_name,
+          raw_log: customLog || undefined,
+        }),
       });
       const data = await res.json();
       if (data.run_id) {
@@ -158,6 +165,8 @@ export default function DashboardPage() {
           branch={branch}
           onRepoChange={setRepo}
           onBranchChange={setBranch}
+          customLog={customLog}
+          onCustomLogChange={setCustomLog}
         />
       </aside>
 

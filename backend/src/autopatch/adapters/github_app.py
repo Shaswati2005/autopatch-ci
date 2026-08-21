@@ -39,7 +39,7 @@ class GitHubAppAdapter(GitProviderPort):
 
         url = f"{GITHUB_API}/repos/{repo}/contents/{file_path}?ref={ref}"
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = client.get(url, headers=self._headers())
+            resp = await client.get(url, headers=self._headers())
             if resp.status_code == 200:
                 import base64
                 content_b64 = resp.json().get("content", "")

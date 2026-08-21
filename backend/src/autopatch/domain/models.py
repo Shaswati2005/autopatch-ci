@@ -25,6 +25,7 @@ class CIFailureEvent(BaseModel):
     run_id: str = Field(..., description="Workflow run ID")
     workflow_name: str = Field(default="CI", description="Name of the failing workflow")
     action_source: str = Field(default="github_app", description="Trigger source: 'github_app' or 'github_action'")
+    raw_log: Optional[str] = Field(default=None, description="Raw failure log / stack trace if provided directly")
     installation_id: Optional[int] = Field(default=None, description="GitHub App installation ID if applicable")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

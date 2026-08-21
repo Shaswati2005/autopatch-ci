@@ -1,7 +1,7 @@
 """FastAPI Application Entry Point for AutoPatch-CI."""
 
 import json
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,9 +48,11 @@ pipeline = AutoPatchHealingPipeline(
 
 
 class TriggerDemoRequest(BaseModel):
-    repo: str = "acme/autopatch-demo"
+    repo: str = "Shaswati2005/autopatch-ci"
     branch: str = "main"
     workflow_name: str = "CI / Pytest Suite"
+    commit_sha: Optional[str] = None
+    raw_log: Optional[str] = None
 
 
 @app.get("/health")
@@ -62,18 +64,20 @@ def health_check() -> Dict[str, str]:
 async def github_webhook(payload: Dict[str, Any], background_tasks: BackgroundTasks) -> Dict[str, str]:
     """Receives GitHub failure webhook, acknowledges immediately, and runs agent pipeline asynchronously."""
     # Extract webhook payload details
-    repo = payload.get("repo") or payload.get("repository", {}).get("full_name", "acme/demo-repo")
+    repo = payload.get("repo") or payload.get("repository", {}).get("full_name", "Shaswati2005/autopatch-ci")
     commit_sha = payload.get("commit_sha") or payload.get("after", "a1b2c3d4e5")
     branch = payload.get("branch") or payload.get("ref", "refs/heads/main").replace("refs/heads/", "")
     run_id = str(payload.get("run_id") or payload.get("workflow_run", {}).get("id", "987654321"))
     action_source = payload.get("action_source", "github_app")
+    raw_log = payload.get("raw_log") or payload.get("log")
 
     event = CIFailureEvent(
         repo=repo,
         commit_sha=commit_sha,
         branch=branch,
         run_id=run_id,
-        action_source=action_source
+        action_source=action_source,
+        raw_log=raw_log,
     )
 
     # Schedule background execution without delaying HTTP response
@@ -82,16 +86,16 @@ async def github_webhook(payload: Dict[str, Any], background_tasks: BackgroundTa
     return {
         "status": "queued",
         "message": f"CI failure event for {repo} run #{run_id} queued for autonomous processing.",
-        "run_id": run_id
+        "run_id": run_id,
     }
 
 
 @app.post("/api/trigger-demo", status_code=202)
 async def trigger_demo(request: TriggerDemoRequest, background_tasks: BackgroundTasks) -> Dict[str, str]:
-    """Trigger a simulated CI build failure event for live testing and demonstration."""
+    """Trigger an autonomous CI build repair run with real repository context."""
     import random
     run_id = str(random.randint(100000, 999999))
-    commit_sha = "f9a8b7c6d5e4"
+    commit_sha = request.commit_sha or "f9a8b7c6d5e4"
 
     event = CIFailureEvent(
         repo=request.repo,
@@ -99,15 +103,16 @@ async def trigger_demo(request: TriggerDemoRequest, background_tasks: Background
         branch=request.branch,
         run_id=run_id,
         workflow_name=request.workflow_name,
-        action_source="demo_trigger"
+        raw_log=request.raw_log,
+        action_source="demo_trigger",
     )
 
     background_tasks.add_task(pipeline.execute, event)
 
     return {
         "status": "queued",
-        "message": "Demo failure trigger initiated.",
-        "run_id": run_id
+        "message": f"AutoPatch-CI repair run #{run_id} initiated for {request.repo} on branch {request.branch}.",
+        "run_id": run_id,
     }
 
 
