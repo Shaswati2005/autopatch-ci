@@ -19,3 +19,14 @@ Thumbs.db
 
 # ---- Docker ----
 docker-compose.override.yml
+
+# ---- Python & Test Artifacts ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
