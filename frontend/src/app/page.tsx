@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ConnectionStatus, StreamStatus } from '../components/ConnectionStatus';
-import { DiffViewer } from '../components/DiffViewer';
-import { TerminalOutput } from '../components/TerminalOutput';
+import { PipelineTimeline } from '../components/PipelineTimeline';
 import { PullRequestCard } from '../components/PullRequestCard';
+import { RunSidebar, PRESETS } from '../components/RunSidebar';
 
 export interface TraceStep {
   step_id: string;
@@ -23,43 +23,20 @@ export interface TraceStep {
     pr_number?: number | string;
     branch?: string;
     repo?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
-
-const FAILURE_PRESETS = [
-  {
-    name: 'Pytest IndexError (calculator.py)',
-    repo: 'acme/autopatch-demo',
-    branch: 'main',
-    workflow_name: 'CI / Pytest Suite',
-  },
-  {
-    name: 'TypeError in Auth Token Validator',
-    repo: 'acme/auth-service',
-    branch: 'main',
-    workflow_name: 'CI / Auth Integration',
-  },
-  {
-    name: 'Async Timeout in Worker Queue',
-    repo: 'acme/queue-worker',
-    branch: 'develop',
-    workflow_name: 'CI / Worker E2E',
-  },
-];
 
 export default function DashboardPage() {
   const [runs, setRuns] = useState<string[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [traces, setTraces] = useState<TraceStep[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [triggering, setTriggering] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  const [triggering, setTriggering] = useState(false);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
-  const [selectedPreset, setSelectedPreset] = useState<number>(0);
-  const [customRepo, setCustomRepo] = useState<string>(FAILURE_PRESETS[0].repo);
-  const [customBranch, setCustomBranch] = useState<string>(FAILURE_PRESETS[0].branch);
-  const [customWorkflow, setCustomWorkflow] = useState<string>(FAILURE_PRESETS[0].workflow_name);
-
+  const [scenarioIndex, setScenarioIndex] = useState(0);
+  const [repo, setRepo] = useState(PRESETS[0].repo);
+  const [branch, setBranch] = useState(PRESETS[0].branch);
   const eventSourceRef = useRef<EventSource | null>(null);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -68,49 +45,35 @@ export default function DashboardPage() {
       const res = await fetch(`${API_BASE}/api/runs`);
       if (!res.ok) return;
       const data = await res.json();
-      if (data.runs && Array.isArray(data.runs) && data.runs.length > 0) {
+      if (Array.isArray(data.runs) && data.runs.length > 0) {
         setRuns(data.runs);
-        setSelectedRun((prev) => prev || data.runs[data.runs.length - 1]);
+        setSelectedRun((prev) => prev ?? data.runs[data.runs.length - 1]);
       }
-    } catch (err) {
-      console.warn('Runs fetch warning:', err);
-    }
+    } catch { /* silent */ }
   }, [API_BASE]);
 
-  const fetchTracesFallback = useCallback(async (runId: string) => {
+  const fetchTraces = useCallback(async (runId: string) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/traces/${runId}`);
       if (!res.ok) return;
       const data = await res.json();
-      setTraces(data.traces || []);
+      setTraces(data.traces ?? []);
       setStreamStatus('polling');
-    } catch (err) {
-      console.warn('Traces fallback polling error:', err);
+    } catch {
       setStreamStatus('disconnected');
     } finally {
       setLoading(false);
     }
   }, [API_BASE]);
 
-  // Connect to SSE stream for the selected run with fallback to polling
   useEffect(() => {
-    if (!selectedRun) {
-      setStreamStatus('idle');
-      return;
-    }
+    if (!selectedRun) { setStreamStatus('idle'); return; }
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-
+    eventSourceRef.current?.close();
     setStreamStatus('connecting');
+    fetchTraces(selectedRun);
 
-    // Initial load
-    fetchTracesFallback(selectedRun);
-
-    // Attempt EventSource SSE streaming
     try {
       const es = new EventSource(`${API_BASE}/api/traces/${selectedRun}/stream`);
       eventSourceRef.current = es;
@@ -119,48 +82,29 @@ export default function DashboardPage() {
         try {
           const step: TraceStep = JSON.parse(e.data);
           setTraces((prev) => {
-            const exists = prev.some((t) => t.step_id === step.step_id || (t.title === step.title && t.stage === step.stage));
-            if (exists) {
-              return prev.map((t) => (t.step_id === step.step_id ? step : t));
-            }
-            return [...prev, step];
+            const exists = prev.some((t) => t.step_id === step.step_id);
+            return exists ? prev.map((t) => (t.step_id === step.step_id ? step : t)) : [...prev, step];
           });
           setStreamStatus('streaming');
-        } catch (parseErr) {
-          console.warn('Failed to parse SSE trace payload:', parseErr);
-        }
+        } catch { /* ignore parse errors */ }
       });
 
-      es.addEventListener('done', () => {
-        setStreamStatus('idle');
-        es.close();
-      });
-
-      es.onerror = () => {
-        // Fallback to polling mode if SSE fails or backend does not have SSE stream ready yet
-        setStreamStatus('polling');
-        es.close();
-      };
+      es.addEventListener('done', () => { setStreamStatus('idle'); es.close(); });
+      es.onerror = () => { setStreamStatus('polling'); es.close(); };
     } catch {
       setStreamStatus('polling');
     }
 
-    // Polling interval backup
     const pollInterval = setInterval(() => {
       fetchRuns();
-      if (streamStatus !== 'streaming') {
-        fetchTracesFallback(selectedRun);
-      }
+      if (streamStatus !== 'streaming') fetchTraces(selectedRun);
     }, 2500);
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
+      eventSourceRef.current?.close();
       clearInterval(pollInterval);
     };
-  }, [selectedRun, API_BASE, fetchRuns, fetchTracesFallback]);
+  }, [selectedRun, API_BASE]);
 
   useEffect(() => {
     fetchRuns();
@@ -168,32 +112,28 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [fetchRuns]);
 
-  const handlePresetSelect = (idx: number) => {
-    setSelectedPreset(idx);
-    setCustomRepo(FAILURE_PRESETS[idx].repo);
-    setCustomBranch(FAILURE_PRESETS[idx].branch);
-    setCustomWorkflow(FAILURE_PRESETS[idx].workflow_name);
+  const handleScenarioChange = (i: number) => {
+    setScenarioIndex(i);
+    setRepo(PRESETS[i].repo);
+    setBranch(PRESETS[i].branch);
   };
 
-  const handleTriggerDemo = async () => {
+  const handleTrigger = async () => {
     setTriggering(true);
     try {
       const res = await fetch(`${API_BASE}/api/trigger-demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repo: customRepo,
-          branch: customBranch,
-          workflow_name: customWorkflow,
-        }),
+        body: JSON.stringify({ repo, branch, workflow_name: PRESETS[scenarioIndex].workflow_name }),
       });
       const data = await res.json();
       if (data.run_id) {
+        setTraces([]);
         setSelectedRun(data.run_id);
         fetchRuns();
       }
-    } catch (err) {
-      alert('Failed to trigger simulated build failure on backend.');
+    } catch {
+      alert('Could not reach backend. Is it running on port 8000?');
     } finally {
       setTriggering(false);
     }
@@ -202,210 +142,117 @@ export default function DashboardPage() {
   const prStep = traces.find((t) => t.stage === 'PR_CREATED');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
-      {/* Left Panel: Trigger & Runs */}
-      <div className="lg:col-span-4 space-y-5">
-        {/* Interactive Trigger Panel */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span>⚡ Interactive Trigger</span>
-            </h2>
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono">
-              Demo Sandbox
-            </span>
-          </div>
+    <div className="flex gap-6" style={{ minHeight: 'calc(100vh - 56px - 48px)' }}>
+      {/* Sidebar */}
+      <aside className="w-72 flex-shrink-0 hidden lg:block">
+        <RunSidebar
+          runs={runs}
+          selectedRun={selectedRun}
+          onSelect={(id) => { setTraces([]); setSelectedRun(id); }}
+          onRefresh={fetchRuns}
+          onTrigger={handleTrigger}
+          triggering={triggering}
+          scenarioIndex={scenarioIndex}
+          onScenarioChange={handleScenarioChange}
+          repo={repo}
+          branch={branch}
+          onRepoChange={setRepo}
+          onBranchChange={setBranch}
+        />
+      </aside>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] text-slate-400 font-medium">Failure Scenario Preset:</label>
-            <select
-              value={selectedPreset}
-              onChange={(e) => handlePresetSelect(Number(e.target.value))}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 outline-none focus:border-emerald-500 transition-all font-mono"
-            >
-              {FAILURE_PRESETS.map((preset, idx) => (
-                <option key={idx} value={idx}>
-                  {preset.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <label className="text-[10px] text-slate-500 font-mono">Target Repo</label>
-              <input
-                type="text"
-                value={customRepo}
-                onChange={(e) => setCustomRepo(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-[11px] rounded px-2.5 py-1.5 font-mono outline-none focus:border-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-slate-500 font-mono">Branch</label>
-              <input
-                type="text"
-                value={customBranch}
-                onChange={(e) => setCustomBranch(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-[11px] rounded px-2.5 py-1.5 font-mono outline-none focus:border-emerald-500"
-              />
-            </div>
-          </div>
-
+      {/* Main Panel */}
+      <main className="flex-1 min-w-0 flex flex-col gap-5">
+        {/* Mobile trigger */}
+        <div className="lg:hidden">
           <button
-            onClick={handleTriggerDemo}
+            onClick={handleTrigger}
             disabled={triggering}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-bold py-2.5 px-4 rounded-lg transition-all text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950"
+            className="w-full py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), #a855f7)',
+              color: '#fff',
+              border: 'none',
+              cursor: triggering ? 'not-allowed' : 'pointer',
+            }}
             data-testid="trigger-btn"
           >
-            {triggering ? 'Simulating Pipeline Failure...' : '🚀 Trigger Simulated CI Failure'}
+            {triggering ? 'Simulating...' : '⚡ Trigger CI Failure'}
           </button>
         </div>
 
-        {/* Processed Runs List */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              📋 Workflow Runs ({runs.length})
-            </h2>
-            <button
-              onClick={fetchRuns}
-              className="text-[10px] text-slate-400 hover:text-slate-200 underline font-mono"
-            >
-              Refresh
-            </button>
-          </div>
-
-          {runs.length === 0 ? (
-            <div className="text-xs text-slate-500 py-6 text-center border border-dashed border-slate-800 rounded-lg">
-              No workflow runs logged yet. Click trigger above to start.
-            </div>
-          ) : (
-            <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
-              {runs.slice().reverse().map((runId) => (
-                <button
-                  key={runId}
-                  onClick={() => setSelectedRun(runId)}
-                  className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex items-center justify-between ${
-                    selectedRun === runId
-                      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-medium'
-                      : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                  data-testid={`run-item-${runId}`}
-                >
-                  <span className="font-mono">Run #{runId}</span>
-                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
-                    {selectedRun === runId ? 'ACTIVE' : 'READY'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right Panel: Observability Stream & Traces */}
-      <div className="lg:col-span-8 space-y-5">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+        {/* Trace Panel */}
+        <div
+          className="rounded-2xl flex-1 flex flex-col"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          {/* Trace header */}
+          <div
+            className="flex items-center justify-between px-6 py-4"
+            style={{ borderBottom: '1px solid var(--border-subtle)' }}
+          >
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                🧠 Agent Reasoning & Pipeline Trace
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Target Run: <span className="font-mono text-emerald-400 font-semibold">{selectedRun ? `#${selectedRun}` : 'None'}</span>
-              </p>
+              <h1 className="font-semibold text-sm" style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                Agent Reasoning Trace
+              </h1>
+              {selectedRun ? (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+                  run/{selectedRun}
+                </p>
+              ) : (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  Trigger a simulation to begin
+                </p>
+              )}
             </div>
             <ConnectionStatus status={streamStatus} runId={selectedRun} />
           </div>
 
-          {loading && traces.length === 0 ? (
-            <div className="text-xs text-slate-400 py-16 text-center flex flex-col items-center gap-2">
-              <span className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
-              Loading agent execution trace steps...
-            </div>
-          ) : traces.length === 0 ? (
-            <div className="text-xs text-slate-500 py-16 text-center border border-dashed border-slate-800 rounded-xl">
-              Select or trigger a workflow run to view real-time Gemini reasoning traces.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {traces.map((step, idx) => {
-                const isPatch = step.stage === 'PATCH_GENERATED' && step.payload?.diff;
-                const isVerification =
-                  (step.stage === 'VERIFIED' || step.stage === 'VERIFICATION_PASSED' || step.stage === 'VERIFICATION_FAILED') &&
-                  step.payload?.test_output;
-
-                return (
-                  <div
-                    key={step.step_id || idx}
-                    className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 transition-all hover:border-slate-700 shadow-md"
-                    data-testid={`trace-step-${idx}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 rounded-full bg-slate-800 text-emerald-400 border border-slate-700 font-mono text-xs flex items-center justify-center font-bold">
-                          {idx + 1}
-                        </span>
-                        <h3 className="text-sm font-semibold text-slate-200">{step.title}</h3>
-                      </div>
-                      <span className="text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-medium">
-                        {step.stage}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-slate-400 mt-2 ml-9 leading-relaxed">{step.detail}</p>
-
-                    {/* Rich Diff Display */}
-                    {isPatch && step.payload && (
-                      <div className="ml-9">
-                        <DiffViewer
-                          diff={step.payload.diff!}
-                          targetFile={step.payload.target_file}
-                          explanation={step.payload.explanation}
-                        />
-                      </div>
-                    )}
-
-                    {/* Rich Terminal Output Display */}
-                    {isVerification && step.payload && (
-                      <div className="ml-9">
-                        <TerminalOutput
-                          output={step.payload.test_output!}
-                          passed={Boolean(step.payload.passed ?? true)}
-                          durationSeconds={Number(step.payload.duration_s || 0)}
-                        />
-                      </div>
-                    )}
-
-                    {/* Generic Payload Fallback */}
-                    {!isPatch && !isVerification && step.payload && Object.keys(step.payload).length > 0 && (
-                      <div className="mt-3 ml-9 p-3 bg-slate-900 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1">
-                        {Object.entries(step.payload).map(([k, v]) => (
-                          <div key={k} className="flex gap-2">
-                            <span className="text-slate-500">{k}:</span>
-                            <span className="text-emerald-400 break-all">{String(v)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+          {/* Trace body */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {loading && traces.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-20" style={{ color: 'var(--text-muted)' }}>
+                <div
+                  className="w-6 h-6 rounded-full border-2 animate-spin-slow"
+                  style={{ borderColor: 'var(--border)', borderTopColor: 'var(--accent)' }}
+                />
+                <span className="text-xs">Loading trace steps...</span>
+              </div>
+            ) : traces.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 py-20">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+                >
+                  🤖
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    No active trace
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Select a run from the sidebar or trigger a new simulation.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                <PipelineTimeline traces={traces} />
+                {prStep?.payload?.pr_url && (
+                  <div className="mt-6 animate-fade-in-up">
+                    <PullRequestCard
+                      prUrl={prStep.payload.pr_url}
+                      prNumber={prStep.payload.pr_number as number | undefined}
+                      branch={prStep.payload.branch}
+                      repo={prStep.payload.repo}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* PR Delivery Card */}
-        {prStep && prStep.payload?.pr_url && (
-          <PullRequestCard
-            prUrl={prStep.payload.pr_url}
-            prNumber={prStep.payload.pr_number}
-            branch={prStep.payload.branch}
-            repo={prStep.payload.repo}
-          />
-        )}
-      </div>
+      </main>
     </div>
   );
 }

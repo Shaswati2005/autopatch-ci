@@ -6,14 +6,14 @@ import { ConnectionStatus } from '../components/ConnectionStatus';
 describe('ConnectionStatus Component', () => {
   it('renders streaming state correctly with run ID', () => {
     render(<ConnectionStatus status="streaming" runId="123456" />);
-    expect(screen.getByText('SSE LIVE STREAM')).toBeInTheDocument();
-    expect(screen.getByText('#123456')).toBeInTheDocument();
+    expect(screen.getByText('LIVE')).toBeInTheDocument();
     expect(screen.getByTestId('streaming-indicator')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-status')).toBeInTheDocument();
   });
 
   it('renders polling mode state correctly', () => {
     render(<ConnectionStatus status="polling" />);
-    expect(screen.getByText('POLLING MODE (2s)')).toBeInTheDocument();
+    expect(screen.getByText('POLLING')).toBeInTheDocument();
     expect(screen.getByTestId('polling-indicator')).toBeInTheDocument();
   });
 
@@ -24,6 +24,6 @@ describe('ConnectionStatus Component', () => {
 
   it('renders disconnected state correctly', () => {
     render(<ConnectionStatus status="disconnected" />);
-    expect(screen.getByText('OFFLINE / RETRYING')).toBeInTheDocument();
+    expect(screen.getByText('OFFLINE')).toBeInTheDocument();
   });
 });

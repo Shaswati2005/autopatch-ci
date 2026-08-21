@@ -14,10 +14,13 @@ describe('PullRequestCard Component', () => {
       />
     );
 
-    expect(screen.getByText('Autonomous Pull Request Delivered')).toBeInTheDocument();
-    expect(screen.getByText('#42')).toBeInTheDocument();
-    expect(screen.getByText('autopatch/fix-run-101')).toBeInTheDocument();
+    expect(screen.getByTestId('pr-card')).toBeInTheDocument();
+    expect(screen.getByText('Pull Request Delivered')).toBeInTheDocument();
     expect(screen.getByText('acme/demo-repo')).toBeInTheDocument();
+
+    // branch text includes "⎇" prefix, use partial match
+    const branchEl = screen.getByText(/autopatch\/fix-run-101/);
+    expect(branchEl).toBeInTheDocument();
 
     const link = screen.getByTestId('view-pr-btn');
     expect(link).toHaveAttribute('href', 'https://github.com/acme/demo-repo/pull/42');

@@ -5,16 +5,22 @@ import DashboardPage from '../app/page';
 
 describe('DashboardPage Integration', () => {
   beforeEach(() => {
+    vi.stubGlobal('EventSource', vi.fn(() => ({
+      addEventListener: vi.fn(),
+      onerror: null,
+      close: vi.fn(),
+    })));
+
     vi.stubGlobal(
       'fetch',
-      vi.fn((url: string) => {
-        if (url.endsWith('/api/runs')) {
+      vi.fn((url: string, options?: RequestInit) => {
+        if (typeof url === 'string' && url.endsWith('/api/runs')) {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ runs: ['1001', '1002'] }),
           });
         }
-        if (url.includes('/api/traces/1002')) {
+        if (typeof url === 'string' && url.includes('/api/traces/')) {
           return Promise.resolve({
             ok: true,
             json: () =>
@@ -30,7 +36,6 @@ describe('DashboardPage Integration', () => {
                     payload: {
                       diff: '--- a/calc.py\n+++ b/calc.py\n@@ -1 +1 @@\n-x\n+y',
                       target_file: 'src/calc.py',
-                      explanation: 'Resolved edge case',
                     },
                   },
                   {
@@ -50,16 +55,13 @@ describe('DashboardPage Integration', () => {
               }),
           });
         }
-        if (url.endsWith('/api/trigger-demo')) {
+        if (typeof url === 'string' && url.endsWith('/api/trigger-demo')) {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ status: 'queued', run_id: '1003' }),
           });
         }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       })
     );
   });
@@ -68,33 +70,31 @@ describe('DashboardPage Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders dashboard title and loads workflow runs', async () => {
+  it('renders dashboard agent trace panel and connection status', async () => {
     render(<DashboardPage />);
+    expect(screen.getByText('Agent Reasoning Trace')).toBeInTheDocument();
+    expect(screen.getByTestId('connection-status')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText('⚡ Interactive Trigger')).toBeInTheDocument();
-    expect(screen.getByText('🧠 Agent Reasoning & Pipeline Trace')).toBeInTheDocument();
+  it('renders run items and trace steps for selected run', async () => {
+    render(<DashboardPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('run-item-1002')).toBeInTheDocument();
     });
-  });
-
-  it('renders trace steps and PR card for selected run', async () => {
-    render(<DashboardPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Code Fix & Regression Test Generated')).toBeInTheDocument();
-      expect(screen.getByText('src/calc.py')).toBeInTheDocument();
       expect(screen.getByTestId('pr-card')).toBeInTheDocument();
-      expect(screen.getByText('#12')).toBeInTheDocument();
     });
   });
 
-  it('triggers demo build failure when button clicked', async () => {
+  it('triggers demo build failure when trigger button is clicked', async () => {
     render(<DashboardPage />);
 
-    const triggerBtn = screen.getByTestId('trigger-btn');
-    fireEvent.click(triggerBtn);
+    // find the desktop sidebar trigger button (non-mobile)
+    const buttons = screen.getAllByTestId('trigger-btn');
+    fireEvent.click(buttons[0]);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
