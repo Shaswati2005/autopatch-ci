@@ -342,3 +342,46 @@ async def get_repo_workflows(owner: str, repo: str, token: Optional[str] = None)
     }
 
 
+@app.get("/api/github/repos/{owner}/{repo}/actions/runs")
+async def get_repo_action_runs(owner: str, repo: str, token: Optional[str] = None) -> Dict[str, Any]:
+
+    """Fetch real GitHub Actions workflow runs for a repository."""
+    import httpx
+    auth_token = token or (settings.github_token if settings.github_token != "mock-github-token" else None)
+    
+    if auth_token:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/actions/runs?per_page=15",
+                headers={
+                    "Authorization": f"Bearer {auth_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "AutoPatch-CI-Agent",
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                runs = [
+                    {
+                        "id": str(r["id"]),
+                        "name": r.get("name", "CI Workflow"),
+                        "status": r.get("status", "completed"),
+                        "conclusion": r.get("conclusion") or "in_progress",
+                        "branch": r.get("head_branch", "main"),
+                        "commit_sha": r.get("head_sha", "")[:7],
+                        "commit_message": r.get("head_commit", {}).get("message", "") if r.get("head_commit") else "",
+                        "html_url": r.get("html_url", ""),
+                        "created_at": r.get("created_at", ""),
+                        "actor": {
+                            "login": r.get("actor", {}).get("login", ""),
+                            "avatar_url": r.get("actor", {}).get("avatar_url", ""),
+                        } if r.get("actor") else None,
+                    }
+                    for r in data.get("workflow_runs", [])
+                ]
+                return {"workflow_runs": runs}
+
+    return {"workflow_runs": []}
+
+
+

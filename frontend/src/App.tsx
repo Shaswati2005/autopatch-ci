@@ -301,7 +301,9 @@ function AppContent() {
         onTabChange={(tab) => setCurrentTab(tab)}
         incidentsCount={runs.length}
         backendHealthy={backendHealthy}
+        onTriggerRun={(repo, branch, workflow) => handleTriggerCheck(repo, branch, workflow)}
       />
+
 
       {/* Fluid Main Content */}
       <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">

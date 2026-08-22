@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Activity, 
@@ -11,16 +11,31 @@ import {
   LogOut, 
   ExternalLink,
   ShieldAlert,
-  Sparkles
+  Sparkles,
+  Play,
+  ChevronDown
 } from 'lucide-react';
 
 export type DashboardTab = 'landing' | 'overview' | 'repositories' | 'incidents' | 'settings';
+
+export interface WorkflowRunItem {
+  id: string;
+  name: string;
+  status: string;
+  conclusion: string;
+  branch: string;
+  commit_sha: string;
+  commit_message: string;
+  html_url: string;
+  created_at: string;
+}
 
 interface SidebarProps {
   currentTab: DashboardTab;
   onTabChange: (tab: DashboardTab) => void;
   incidentsCount: number;
   backendHealthy: boolean;
+  onTriggerRun?: (repo: string, branch: string, workflow: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,14 +43,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   incidentsCount,
   backendHealthy,
+  onTriggerRun,
 }) => {
-  const { user, isAuthenticated, loginWithGitHub, logout } = useAuth();
+  const { user, isAuthenticated, loginWithGitHub, logout, authFetch } = useAuth();
+  const [actionRuns, setActionRuns] = useState<WorkflowRunItem[]>([]);
+  const [loadingRuns, setLoadingRuns] = useState(false);
+
+  const API_BASE =
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
+    'http://localhost:8000';
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchActionRuns = async () => {
+      setLoadingRuns(true);
+      try {
+        const res = await authFetch(`${API_BASE}/api/github/repos/Shaswati2005/autopatch-ci/actions/runs`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.workflow_runs)) {
+            setActionRuns(data.workflow_runs);
+          }
+        }
+      } catch {
+        /* silent */
+      } finally {
+        setLoadingRuns(false);
+      }
+    };
+
+    fetchActionRuns();
+    const interval = setInterval(fetchActionRuns, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, authFetch, API_BASE]);
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-[#0b0d14] border-r border-[#232838] flex flex-col justify-between h-screen sticky top-0 select-none">
+    <aside className="w-60 flex-shrink-0 bg-[#0b0d14] border-r border-[#232838] flex flex-col justify-between h-screen sticky top-0 select-none overflow-y-auto">
       
       {/* Top Header & Brand */}
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-5">
         
         {/* Warp Terminal Brand Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#232838]">
@@ -124,8 +171,66 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </nav>
 
+        {/* Live GitHub Actions CI Runs Section */}
+        {isAuthenticated && (
+          <div className="pt-2 space-y-2 border-t border-[#232838]">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#5f6580] font-semibold">
+                GitHub Action Runs
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#5ee78a] animate-pulse" />
+            </div>
+
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {actionRuns.length === 0 ? (
+                <div className="p-2 rounded bg-[#11141d] border border-[#232838] text-[10px] font-mono text-[#5f6580]">
+                  {loadingRuns ? 'Fetching live runs...' : 'No GitHub runs found'}
+                </div>
+              ) : (
+                actionRuns.slice(0, 5).map((run) => {
+                  const isFail = run.conclusion === 'failure';
+                  return (
+                    <div
+                      key={run.id}
+                      className="p-2 rounded-md bg-[#11141d] border border-[#232838] hover:border-[#2e3447] text-[11px] font-mono space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              isFail ? 'bg-[#f6827d]' : run.conclusion === 'success' ? 'bg-[#5ee78a]' : 'bg-[#ff7a59]'
+                            }`}
+                          />
+                          <span className="truncate text-[#f1f1f4] font-medium text-[10px]">
+                            {run.name}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-[#5f6580]">#{run.commit_sha}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="text-[9px] text-[#5f6580] truncate max-w-[110px]">
+                          {run.branch}
+                        </span>
+                        {isFail && onTriggerRun && (
+                          <button
+                            onClick={() => onTriggerRun('Shaswati2005/autopatch-ci', run.branch, run.name)}
+                            className="px-1.5 py-0.5 rounded bg-[#7553f6]/20 text-[#7553f6] hover:bg-[#7553f6]/30 text-[9px] font-mono flex items-center gap-0.5"
+                          >
+                            <Zap className="w-2.5 h-2.5" /> Heal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Marketing / Landing Switcher Link */}
-        <div className="pt-2">
+        <div className="pt-1">
           <button
             onClick={() => onTabChange('landing')}
             className="w-full text-left px-3 py-2 rounded-lg text-xs font-mono text-[#5f6580] hover:text-[#9aa1b3] hover:bg-[#11141d] flex items-center gap-2 transition-colors"
