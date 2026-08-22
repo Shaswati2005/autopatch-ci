@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar, DashboardTab } from './components/Sidebar';
 import { LandingPage } from './views/LandingPage';
@@ -6,6 +6,7 @@ import { DashboardOverview } from './views/DashboardOverview';
 import { RepositoriesView } from './views/RepositoriesView';
 import { IncidentsView } from './views/IncidentsView';
 import { SettingsView } from './views/SettingsView';
+import { CICalendarView } from './views/CICalendarView';
 import { AuthCallbackView } from './views/AuthCallbackView';
 import { StreamStatus } from './components/ConnectionStatus';
 import { TraceStep } from './types';
@@ -15,7 +16,7 @@ export type { TraceStep };
 
 function AppContent() {
   const { isAuthenticated, token, loginWithGitHub, authFetch } = useAuth();
-  
+
   const [currentTab, setCurrentTab] = useState<DashboardTab>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.includes('/auth-callback')) {
       return 'overview';
@@ -41,10 +42,10 @@ function AppContent() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const API_BASE =
-    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
+    (typeof import.meta !== 'undefined' && import.meta.env &&
+      (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
     'http://localhost:8000';
 
-  // Check backend health
   const checkHealth = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/health`);
@@ -54,7 +55,6 @@ function AppContent() {
     }
   }, [API_BASE]);
 
-  // Fetch runs with auth header
   const fetchRuns = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
@@ -68,7 +68,6 @@ function AppContent() {
     } catch { /* silent */ }
   }, [API_BASE, isAuthenticated, authFetch]);
 
-  // Fetch traces with auth header
   const fetchTraces = useCallback(async (runId: string) => {
     if (!isAuthenticated) return;
     try {
@@ -85,26 +84,21 @@ function AppContent() {
 
   useEffect(() => {
     checkHealth();
-    if (isAuthenticated) {
-      fetchRuns();
-    }
+    if (isAuthenticated) fetchRuns();
     const interval = setInterval(() => {
       checkHealth();
-      if (isAuthenticated) {
-        fetchRuns();
-      }
+      if (isAuthenticated) fetchRuns();
     }, 4000);
     return () => clearInterval(interval);
   }, [checkHealth, fetchRuns, isAuthenticated]);
 
-  // SSE Trace Subscription with token
+  // SSE Trace Subscription
   useEffect(() => {
     if (!selectedRun || !isAuthenticated) {
       setStreamStatus('idle');
       setTraces([]);
       return;
     }
-
     setLoading(true);
     setStreamStatus('connecting');
     fetchTraces(selectedRun).finally(() => setLoading(false));
@@ -155,14 +149,55 @@ function AppContent() {
     };
   }, [selectedRun, API_BASE, isAuthenticated, token, fetchTraces]);
 
+  // ── Trigger handlers ────────────────────────────────────────────────────
+
+  /**
+   * Trigger AutoPatch on a specific real GitHub Actions run ID.
+   * Used by RepositoriesView "Fix This Run" and CICalendarView "AutoPatch" buttons.
+   */
+  const handleTriggerOnRealRun = async (repo: string, runId: string, branch: string) => {
+    if (!isAuthenticated) { loginWithGitHub(); return; }
+    setTriggering(true);
+    try {
+      const res = await authFetch(`${API_BASE}/api/runs/${runId}/autopatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo,
+          run_id: runId,
+          branch,
+          github_token: token || '',
+        }),
+      });
+      const data = await res.json();
+      if (data.run_id) {
+        setTraces([]);
+        setSelectedRun(data.run_id);
+        fetchRuns();
+        setCurrentTab('incidents');
+      }
+    } catch (err) {
+      console.error('Trigger autopatch failed', err);
+    } finally {
+      setTriggering(false);
+    }
+  };
+
+  /**
+   * Trigger a general demo/manual run on a repo+branch.
+   * Optionally pass a specific runId to target a known failing run.
+   */
   const handleTriggerCheck = async (
     repoName = 'Shaswati2005/autopatch-ci',
     branch = 'main',
-    workflowName = 'CI / Pytest Suite'
+    workflowName = 'CI / Pytest Suite',
+    runId?: string,
   ) => {
-    if (!isAuthenticated) {
-      loginWithGitHub();
-      return;
+    if (!isAuthenticated) { loginWithGitHub(); return; }
+
+    // If a specific real runId is provided, use the real-run endpoint
+    if (runId) {
+      return handleTriggerOnRealRun(repoName, runId, branch);
     }
 
     setTriggering(true);
@@ -172,8 +207,9 @@ function AppContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           repo: repoName,
-          branch: branch,
+          branch,
           workflow_name: workflowName,
+          github_token: token || '',
         }),
       });
       const data = await res.json();
@@ -190,25 +226,19 @@ function AppContent() {
     }
   };
 
-  // If receiving OAuth callback
+  // ── Auth callback ───────────────────────────────────────────────────────
   if (isAuthCallback) {
     return (
       <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
         <AuthCallbackView
-          onAuthSuccess={() => {
-            setIsAuthCallback(false);
-            setCurrentTab('overview');
-          }}
-          onAuthError={() => {
-            setIsAuthCallback(false);
-            setCurrentTab('overview');
-          }}
+          onAuthSuccess={() => { setIsAuthCallback(false); setCurrentTab('overview'); }}
+          onAuthError={() => { setIsAuthCallback(false); setCurrentTab('overview'); }}
         />
       </div>
     );
   }
 
-  // If on Landing Page
+  // ── Landing Page ────────────────────────────────────────────────────────
   if (currentTab === 'landing') {
     return (
       <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
@@ -220,17 +250,11 @@ function AppContent() {
             </div>
             <div className="flex items-center gap-3">
               {isAuthenticated ? (
-                <button
-                  onClick={() => setCurrentTab('overview')}
-                  className="btn-warp-primary text-xs"
-                >
+                <button onClick={() => setCurrentTab('overview')} className="btn-warp-primary text-xs">
                   Launch Console
                 </button>
               ) : (
-                <button
-                  onClick={loginWithGitHub}
-                  className="btn-warp-primary text-xs"
-                >
+                <button onClick={loginWithGitHub} className="btn-warp-primary text-xs">
                   <Github className="w-3.5 h-3.5" />
                   Sign in with GitHub
                 </button>
@@ -238,22 +262,15 @@ function AppContent() {
             </div>
           </div>
         </header>
-
         <LandingPage
-          onLaunchConsole={() => {
-            if (isAuthenticated) {
-              setCurrentTab('overview');
-            } else {
-              loginWithGitHub();
-            }
-          }}
+          onLaunchConsole={() => { if (isAuthenticated) setCurrentTab('overview'); else loginWithGitHub(); }}
           runsCount={runs.length}
         />
       </div>
     );
   }
 
-  // Strict Auth Guard: If unauthenticated, render login block instead of console
+  // ── Auth Guard ──────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4] flex items-center justify-center p-6">
@@ -261,29 +278,19 @@ function AppContent() {
           <div className="w-12 h-12 rounded-xl bg-[#1e2331] border border-[#2e3447] flex items-center justify-center mx-auto text-[#7553f6]">
             <Lock className="w-6 h-6" />
           </div>
-
           <div className="space-y-2">
-            <h2 className="font-headline text-2xl text-[#f1f1f4]">
-              Authentication Required
-            </h2>
+            <h2 className="font-headline text-2xl text-[#f1f1f4]">Authentication Required</h2>
             <p className="text-xs text-[#9aa1b3] font-mono leading-relaxed">
-              AutoPatch-CI developer console is protected by GitHub OAuth. Please authenticate to access repositories and diagnostic traces.
+              AutoPatch-CI is protected by GitHub OAuth. Sign in to access your repositories and diagnostic traces.
             </p>
           </div>
-
           <div className="space-y-3 pt-2">
-            <button
-              onClick={loginWithGitHub}
-              className="w-full btn-warp-primary py-2.5 text-xs font-medium flex items-center justify-center gap-2"
-            >
+            <button onClick={loginWithGitHub} className="w-full btn-warp-primary py-2.5 text-xs font-medium flex items-center justify-center gap-2">
               <Github className="w-4 h-4 text-[#0b0d14]" />
               Sign in with GitHub
               <ArrowRight className="w-4 h-4 text-[#0b0d14]" />
             </button>
-            <button
-              onClick={() => setCurrentTab('landing')}
-              className="w-full btn-warp-secondary py-2 text-xs font-mono"
-            >
+            <button onClick={() => setCurrentTab('landing')} className="w-full btn-warp-secondary py-2 text-xs font-mono">
               Return to Landing Page
             </button>
           </div>
@@ -292,10 +299,9 @@ function AppContent() {
     );
   }
 
-  // Warp Full-Width App Shell with Persistent 240px Sidebar (Authenticated)
+  // ── Main App Shell ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4] flex">
-      {/* 240px Persistent Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onTabChange={(tab) => setCurrentTab(tab)}
@@ -304,17 +310,12 @@ function AppContent() {
         onTriggerRun={(repo, branch, workflow) => handleTriggerCheck(repo, branch, workflow)}
       />
 
-
-      {/* Fluid Main Content */}
       <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">
         {currentTab === 'overview' && (
           <DashboardOverview
             runs={runs}
             selectedRun={selectedRun}
-            onSelectRun={(id) => {
-              setSelectedRun(id);
-              setCurrentTab('incidents');
-            }}
+            onSelectRun={(id) => { setSelectedRun(id); setCurrentTab('incidents'); }}
             onNavigateToIncidents={() => setCurrentTab('incidents')}
             onNavigateToRepos={() => setCurrentTab('repositories')}
             onTriggerExistingCI={() => handleTriggerCheck()}
@@ -324,7 +325,7 @@ function AppContent() {
 
         {currentTab === 'repositories' && (
           <RepositoriesView
-            onTriggerCheck={(name, branch, workflow) => handleTriggerCheck(name, branch, workflow)}
+            onTriggerCheck={(name, branch, workflow, runId) => handleTriggerCheck(name, branch, workflow, runId)}
             triggering={triggering}
           />
         )}
@@ -339,6 +340,13 @@ function AppContent() {
             onSelectRun={(id) => setSelectedRun(id)}
             onRefresh={fetchRuns}
             onTriggerCheck={() => handleTriggerCheck()}
+            triggering={triggering}
+          />
+        )}
+
+        {currentTab === 'calendar' && (
+          <CICalendarView
+            onTriggerAutopatch={(repo, runId, branch) => handleTriggerOnRealRun(repo, runId, branch)}
             triggering={triggering}
           />
         )}

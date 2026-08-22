@@ -281,14 +281,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono font-bold text-[#f1f1f4]">
-                        Shaswati2005/autopatch-ci
+                        Run #{runId}
                       </span>
                       <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#11141d] text-[#5ee78a] border border-[#2e3447]">
                         PR_DELIVERED
                       </span>
                     </div>
                     <p className="text-[11px] font-mono text-[#5f6580] mt-0.5">
-                      Run #{runId} • Branch: main • Cloud Build: Verified
+                      AutoPatch Autonomous Repair • Google ADK + Cloud Build
                     </p>
                   </div>
                 </div>

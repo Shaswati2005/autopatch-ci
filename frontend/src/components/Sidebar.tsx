@@ -13,10 +13,12 @@ import {
   ShieldAlert,
   Sparkles,
   Play,
-  ChevronDown
+  ChevronDown,
+  CalendarDays
 } from 'lucide-react';
 
-export type DashboardTab = 'landing' | 'overview' | 'repositories' | 'incidents' | 'settings';
+export type DashboardTab = 'landing' | 'overview' | 'repositories' | 'incidents' | 'calendar' | 'settings';
+
 
 export interface WorkflowRunItem {
   id: string;
@@ -159,6 +161,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           <button
+            onClick={() => onTabChange('calendar')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              currentTab === 'calendar'
+                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
+                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <CalendarDays className="w-4 h-4 text-[#7553f6]" />
+              <span>CI Calendar</span>
+            </div>
+          </button>
+
+          <button
             onClick={() => onTabChange('settings')}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
               currentTab === 'settings'
@@ -172,6 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
         </nav>
+
 
         {/* Auto-Heal Daemon Mode Switcher */}
         {isAuthenticated && (

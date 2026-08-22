@@ -46,8 +46,11 @@ class Settings(BaseSettings):
 
     # GCP Infrastructure
     gcp_project_id: str = "autopatch-dev-project"
+    gcp_location: str = "us-central1"
+    gcp_service_account_key_path: str = ""   # Path to SA JSON key for Cloud Build
     pubsub_topic_name: str = "ci-failure-events"
     verification_strategy: str = "mock"  # Options: 'cloud_build', 'local_docker', 'mock'
+    adk_agent_enabled: bool = True
 
     # Pipeline Thresholds
     max_patch_attempts: int = 3

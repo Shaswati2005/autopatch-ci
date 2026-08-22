@@ -143,7 +143,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                           </span>
                         </div>
                         <p className="text-[10px] font-mono text-[#5f6580] pl-4">
-                          Shaswati2005/autopatch-ci @ main
+                          AutoPatch Run #{runId} • ADK Agent
                         </p>
                       </div>
 

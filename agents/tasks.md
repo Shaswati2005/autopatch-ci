@@ -29,6 +29,8 @@ This board tracks cross-agent tasks, work-in-progress locks, and feature roadmap
 | **`TSK-013`** | `fullstack` | Interactive Gemini PR Copilot drawer for natural language code refinement | `@agent-backend` | `[DONE]` | P1 | 2026-08-22 |
 | **`TSK-014`** | `fullstack` | DevOps Taskmaster CI Health Radar & Flaky Test Intelligence Matrix | `@agent-frontend` | `[DONE]` | P1 | 2026-08-22 |
 | **`TSK-015`** | `backend` | Direct Gemini Flash-Latest model connectivity & real repository file targeting | `@agent-backend` | `[DONE]` | P0 | 2026-08-22 |
+| **`TSK-016`** | `fullstack` | Google ADK Agent Tools + Real GCP Cloud Build + Live Run Monitor + CI Calendar View | `@agent-backend` & `@agent-frontend` | `[DONE]` | P0 | 2026-08-22 |
+
 
 
 ---

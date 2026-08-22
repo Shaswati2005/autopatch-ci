@@ -154,9 +154,21 @@ export const PipelineTimeline: React.FC<PipelineTimelineProps> = ({ traces }) =>
                     }}
                   >
                     {Object.entries(step.payload).map(([k, v]) => (
-                      <div key={k} className="flex gap-3">
+                      <div key={k} className="flex gap-3 items-center">
                         <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{k}:</span>
-                        <span style={{ color: 'var(--accent-neon)', wordBreak: 'break-all' }}>{String(v)}</span>
+                        {typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://')) ? (
+                          <a
+                            href={v}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline hover:opacity-80 transition-opacity"
+                            style={{ color: '#7553f6', wordBreak: 'break-all' }}
+                          >
+                            {v} ↗
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--accent-neon)', wordBreak: 'break-all' }}>{String(v)}</span>
+                        )}
                       </div>
                     ))}
                   </div>
