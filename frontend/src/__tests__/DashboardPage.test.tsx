@@ -3,9 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import App from '../App';
 
-const DashboardPage = App;
-
-describe('App Integration', () => {
+describe('App & Solarpunk Landing Page Integration', () => {
   beforeEach(() => {
     class MockEventSource {
       addEventListener = vi.fn();
@@ -18,6 +16,12 @@ describe('App Integration', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string, options?: RequestInit) => {
+        if (typeof url === 'string' && url.endsWith('/health')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ status: 'healthy' }),
+          });
+        }
         if (typeof url === 'string' && url.endsWith('/api/runs')) {
           return Promise.resolve({
             ok: true,
@@ -36,7 +40,7 @@ describe('App Integration', () => {
                     stage: 'PATCH_GENERATED',
                     timestamp: '2026-08-21T22:00:00Z',
                     title: 'Code Fix & Regression Test Generated',
-                    detail: 'Gemini 3.5 Flash generated patch for calculator.py',
+                    detail: 'Gemini 2.5 Flash generated patch for calculator.py',
                     payload: {
                       diff: '--- a/calc.py\n+++ b/calc.py\n@@ -1 +1 @@\n-x\n+y',
                       target_file: 'src/calc.py',
@@ -65,7 +69,7 @@ describe('App Integration', () => {
             json: () => Promise.resolve({ status: 'queued', run_id: '1003' }),
           });
         }
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ stargazers_count: 15 }) });
       })
     );
   });
@@ -74,31 +78,41 @@ describe('App Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders dashboard agent trace panel and connection status', async () => {
-    render(<DashboardPage />);
-    expect(screen.getByText('Agent Reasoning Trace')).toBeInTheDocument();
-    expect(screen.getByTestId('connection-status')).toBeInTheDocument();
+  it('renders solarpunk landing page with hero headline and launch CTA', async () => {
+    render(<App />);
+    expect(screen.getAllByText(/Photosynthetic/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Launch Live Console')).toBeInTheDocument();
   });
 
-  it('renders run items and trace steps for selected run', async () => {
-    render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('run-item-1002')).toBeInTheDocument();
-    });
+  it('navigates to dashboard overview and repositories tabs', async () => {
+    render(<App />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Code Fix & Regression Test Generated')).toBeInTheDocument();
-      expect(screen.getByTestId('pr-card')).toBeInTheDocument();
-    });
+    // Click Dashboard tab in Navbar
+    const dashboardTab = screen.getByRole('button', { name: /Dashboard/i });
+    fireEvent.click(dashboardTab);
+
+    expect(screen.getByText(/Total Healed PRs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Repair Success Rate/i)).toBeInTheDocument();
+
+    // Click Repositories tab
+    const reposTab = screen.getByRole('button', { name: /Repositories/i });
+    fireEvent.click(reposTab);
+
+    expect(screen.getByText('Connected GitHub Repositories')).toBeInTheDocument();
+    expect(screen.getByText('Shaswati2005/autopatch-ci')).toBeInTheDocument();
   });
 
-  it('triggers demo build failure when trigger button is clicked', async () => {
-    render(<DashboardPage />);
+  it('triggers CI workflow check and navigates to incident trace view', async () => {
+    render(<App />);
 
-    // find the desktop sidebar trigger button (non-mobile)
-    const buttons = screen.getAllByTestId('trigger-btn');
-    fireEvent.click(buttons[0]);
+    // Click Dashboard overview
+    const dashboardTab = screen.getByRole('button', { name: /Dashboard/i });
+    fireEvent.click(dashboardTab);
+
+    // Click Test Active CI Workflow button
+    const testCiBtn = screen.getByRole('button', { name: /Test Active CI Workflow/i });
+    fireEvent.click(testCiBtn);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
