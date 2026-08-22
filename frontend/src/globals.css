@@ -3,32 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #060b08;
-  --bg-secondary: #0b140e;
-  --bg-card: #0f1c13;
-  --bg-elevated: #15261b;
-  --border: #1b3022;
-  --border-subtle: #122317;
-  --border-glow: #2d543a;
-  
-  --bio-green: #00f59b;
-  --bio-green-dim: rgba(0, 245, 155, 0.12);
-  --bio-green-glow: rgba(0, 245, 155, 0.25);
-  
-  --solar-gold: #f5b700;
-  --solar-gold-dim: rgba(245, 183, 0, 0.12);
-  --solar-gold-glow: rgba(245, 183, 0, 0.25);
-  
-  --terra-red: #ff5c5c;
-  --terra-red-dim: rgba(255, 92, 92, 0.12);
-  
-  --sky-blue: #38bdf8;
-  --sky-blue-dim: rgba(56, 189, 248, 0.12);
-  
-  --text-primary: #f0faf4;
-  --text-secondary: #94b8a3;
-  --text-muted: #557562;
-  --text-gold: #fde047;
+  /* Surfaces from Warp */
+  --bg: #0b0d14;
+  --bg-alt: #11141d;
+  --surface: #161a25;
+  --surface-2: #1e2331;
+  --text: #f1f1f4;
+  --text-muted: #9aa1b3;
+  --text-dim: #5f6580;
+  --border: #232838;
+  --border-strong: #2e3447;
+
+  /* Accent from Sentry — replaces Warp teal */
+  --accent: #7553f6;
+  --accent-hover: #8967ff;
+  --accent-soft: #584774;
+
+  /* State */
+  --warning: #ff7a59;
+  --danger: #f6827d;
+  --success: #5ee78a;
 }
 
 * {
@@ -36,141 +30,156 @@
 }
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'Bricolage Grotesque', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(0, 245, 155, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 85% 20%, rgba(245, 183, 0, 0.04) 0%, transparent 45%),
-    linear-gradient(rgba(27, 48, 34, 0.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(27, 48, 34, 0.15) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  font-feature-settings: 'tnum' on, 'lnum' on;
 }
 
-.font-display {
-  font-family: 'Syne', sans-serif;
+/* Headlines / Display: Rubik 600 at 24px+ only */
+.font-headline {
+  font-family: 'Rubik', sans-serif;
+  font-weight: 600;
 }
 
+/* Code & Numerals: JetBrains Mono with tabular numbers */
 .font-mono {
-  font-family: 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-.font-sans {
-  font-family: 'Bricolage Grotesque', sans-serif;
+/* Warp Card Pattern: --surface fill, 1px --border, radius 10 */
+.warp-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
-/* Custom Solarpunk Scrollbar */
+.warp-card-hover {
+  transition: border-color 0.15s ease;
+}
+.warp-card-hover:hover {
+  border-color: var(--border-strong);
+}
+
+/* Buttons (Warp x Sentry Spec) */
+.btn-warp-primary {
+  background-color: var(--accent);
+  color: #0b0d14;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+}
+.btn-warp-primary:hover {
+  background-color: var(--accent-hover);
+}
+.btn-warp-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-warp-secondary {
+  background-color: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.btn-warp-secondary:hover {
+  background-color: #262c3e;
+  border-color: #3f4760;
+}
+
+.btn-warp-danger {
+  background-color: var(--danger);
+  color: #0b0d14;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Inputs */
+.warp-input {
+  background-color: var(--bg-alt);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.warp-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(117, 83, 246, 0.4);
+}
+
+/* Sentry-Style Left-Border Alert Row Pattern */
+.sentry-alert-row-danger {
+  background-color: var(--surface);
+  border-left: 4px solid var(--danger);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sentry-alert-row-warning {
+  background-color: var(--surface);
+  border-left: 4px solid var(--warning);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sentry-alert-row-success {
+  background-color: var(--surface);
+  border-left: 4px solid var(--success);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Tabular Numerals globally */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 9999px;
+  background: var(--border-strong);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--bio-green);
-}
-
-/* Glassmorphism with Solarpunk Glow */
-.solar-card {
-  background: linear-gradient(135deg, rgba(15, 28, 19, 0.85) 0%, rgba(11, 20, 14, 0.95) 100%);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.solar-card-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.solar-card-hover:hover {
-  border-color: var(--border-glow);
-  transform: translateY(-2px);
-  box-shadow: 0 14px 40px -12px var(--bio-green-glow), inset 0 1px 0 rgba(0, 245, 155, 0.2);
-}
-
-/* Bio-luminescent buttons */
-.btn-solarpunk-primary {
-  background: linear-gradient(135deg, #00f59b 0%, #10b981 100%);
-  color: #041208;
-  font-weight: 700;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 20px rgba(0, 245, 155, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-solarpunk-primary:hover {
-  box-shadow: 0 6px 28px rgba(0, 245, 155, 0.55);
-  transform: translateY(-1px);
-}
-.btn-solarpunk-primary:active {
-  transform: translateY(0);
-}
-
-.btn-solarpunk-gold {
-  background: linear-gradient(135deg, #f5b700 0%, #eab308 100%);
-  color: #171002;
-  font-weight: 700;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 20px rgba(245, 183, 0, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-solarpunk-gold:hover {
-  box-shadow: 0 6px 28px rgba(245, 183, 0, 0.55);
-  transform: translateY(-1px);
-}
-
-.btn-solarpunk-secondary {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  border-radius: 0.75rem;
-  transition: all 0.2s ease;
-}
-.btn-solarpunk-secondary:hover {
-  border-color: var(--bio-green);
-  background: var(--bg-elevated);
-  color: var(--bio-green);
-}
-
-/* Animations */
-@keyframes solarPulse {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes floatLeaf {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-6px) rotate(3deg);
-  }
-}
-
-@keyframes sunRays {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.animate-solar-pulse {
-  animation: solarPulse 3s ease-in-out infinite;
-}
-
-.animate-float {
-  animation: floatLeaf 4s ease-in-out infinite;
-}
-
-.animate-sun-rays {
-  animation: sunRays 60s linear infinite;
+  background: var(--accent);
 }

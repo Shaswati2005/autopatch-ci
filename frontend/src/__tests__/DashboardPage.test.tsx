@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import App from '../App';
 
-describe('App & Solarpunk Landing Page Integration', () => {
+describe('Warp x Sentry Dashboard & Landing Page Integration', () => {
   beforeEach(() => {
     class MockEventSource {
       addEventListener = vi.fn();
@@ -26,6 +26,38 @@ describe('App & Solarpunk Landing Page Integration', () => {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ runs: ['1001', '1002'] }),
+          });
+        }
+        if (typeof url === 'string' && url.includes('/api/auth/me')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                authenticated: true,
+                username: 'dasbidyendu',
+                name: 'Bidyendu Das',
+                avatar_url: '',
+                org: 'AutoPatch-CI Team',
+                public_repos: 5,
+              }),
+          });
+        }
+        if (typeof url === 'string' && url.includes('/api/github/repos')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                repositories: [
+                  {
+                    id: '1',
+                    name: 'Shaswati2005/autopatch-ci',
+                    url: 'https://github.com/Shaswati2005/autopatch-ci',
+                    default_branch: 'main',
+                    private: false,
+                    description: 'Autonomous DevOps CI/CD Repair & Self-Healing Agent',
+                  },
+                ],
+              }),
           });
         }
         if (typeof url === 'string' && url.includes('/api/traces/')) {
@@ -69,7 +101,7 @@ describe('App & Solarpunk Landing Page Integration', () => {
             json: () => Promise.resolve({ status: 'queued', run_id: '1003' }),
           });
         }
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ stargazers_count: 15 }) });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ stargazers_count: 12 }) });
       })
     );
   });
@@ -78,41 +110,43 @@ describe('App & Solarpunk Landing Page Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders solarpunk landing page with hero headline and launch CTA', async () => {
+  it('renders Warp x Sentry landing page with Rubik headline and lilac CTA', async () => {
     render(<App />);
-    expect(screen.getAllByText(/Photosynthetic/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Launch Live Console')).toBeInTheDocument();
+    expect(screen.getByText(/Self-Healing CI\/CD For High-Velocity Teams/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Launch Console/i })).toBeInTheDocument();
   });
 
-
-  it('navigates to dashboard overview and repositories tabs', async () => {
+  it('navigates from landing to console overview and sidebar tabs', async () => {
     render(<App />);
 
-    // Click Dashboard tab in Navbar
-    const dashboardTab = screen.getByRole('button', { name: /Dashboard/i });
-    fireEvent.click(dashboardTab);
+    // Click Launch Console
+    const launchBtn = screen.getByRole('button', { name: /Launch Console/i });
+    fireEvent.click(launchBtn);
 
-    expect(screen.getByText(/Total Healed PRs/i)).toBeInTheDocument();
-    expect(screen.getByText(/Repair Success Rate/i)).toBeInTheDocument();
+    // Verify Overview stats
+    expect(screen.getByText('Developer Health & CI Repairs')).toBeInTheDocument();
+    expect(screen.getByText('Total Healed PRs')).toBeInTheDocument();
 
-    // Click Repositories tab
-    const reposTab = screen.getByRole('button', { name: /Repositories/i });
-    fireEvent.click(reposTab);
+    // Click Repositories in sidebar
+    const reposBtn = screen.getByRole('button', { name: /Repositories/i });
+    fireEvent.click(reposBtn);
 
-    expect(screen.getByText('Connected GitHub Repositories')).toBeInTheDocument();
-    expect(screen.getByText('Shaswati2005/autopatch-ci')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Connected Repositories')).toBeInTheDocument();
+      expect(screen.getByText('Shaswati2005/autopatch-ci')).toBeInTheDocument();
+    });
   });
 
-  it('triggers CI workflow check and navigates to incident trace view', async () => {
+  it('triggers CI workflow repair from overview', async () => {
     render(<App />);
 
-    // Click Dashboard overview
-    const dashboardTab = screen.getByRole('button', { name: /Dashboard/i });
-    fireEvent.click(dashboardTab);
+    // Launch console
+    const launchBtn = screen.getByRole('button', { name: /Launch Console/i });
+    fireEvent.click(launchBtn);
 
-    // Click Test Active CI Workflow button
-    const testCiBtn = screen.getByRole('button', { name: /Test Active CI Workflow/i });
-    fireEvent.click(testCiBtn);
+    // Click trigger check
+    const triggerBtn = screen.getByRole('button', { name: /Run CI Self-Healing Check/i });
+    fireEvent.click(triggerBtn);
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

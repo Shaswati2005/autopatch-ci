@@ -153,3 +153,176 @@ async def stream_run_traces(run_id: str) -> StreamingResponse:
         },
     )
 
+
+# ── Real GitHub OAuth & REST API Endpoints ─────────────────────────────────────
+
+@app.get("/api/auth/github/login")
+async def github_oauth_login() -> Any:
+    """Redirects browser to GitHub OAuth authorization URL."""
+    from fastapi.responses import RedirectResponse
+    client_id = settings.github_client_id
+    if not client_id:
+        # Fallback redirect to frontend with error notice if client_id is not set
+        return RedirectResponse(url=f"{settings.frontend_url}/auth-callback?error=missing_client_id")
+    
+    redirect_uri = f"http://localhost:8000/api/auth/github/callback"
+    oauth_url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={client_id}"
+        f"&scope=repo,workflow,user:email"
+        f"&redirect_uri={redirect_uri}"
+    )
+    return RedirectResponse(url=oauth_url)
+
+
+@app.get("/api/auth/github/callback")
+async def github_oauth_callback(code: Optional[str] = None, error: Optional[str] = None) -> Any:
+    """Exchanges GitHub OAuth code for an access token and redirects to frontend with token."""
+    from fastapi.responses import RedirectResponse
+    import httpx
+
+    if error or not code:
+        return RedirectResponse(url=f"{settings.frontend_url}/auth-callback?error={error or 'no_code'}")
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        token_resp = await client.post(
+            "https://github.com/login/oauth/access_token",
+            headers={"Accept": "application/json"},
+            data={
+                "client_id": settings.github_client_id,
+                "client_secret": settings.github_client_secret,
+                "code": code,
+            },
+        )
+        if token_resp.status_code != 200:
+            return RedirectResponse(url=f"{settings.frontend_url}/auth-callback?error=token_exchange_failed")
+        
+        token_data = token_resp.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return RedirectResponse(url=f"{settings.frontend_url}/auth-callback?error={token_data.get('error', 'unknown')}")
+
+        return RedirectResponse(url=f"{settings.frontend_url}/auth-callback?token={access_token}")
+
+
+@app.get("/api/auth/me")
+async def get_current_user(token: Optional[str] = None) -> Dict[str, Any]:
+    """Fetch authenticated user profile directly from GitHub REST API."""
+    import httpx
+    auth_token = token or (settings.github_token if settings.github_token != "mock-github-token" else None)
+    
+    if not auth_token:
+        # Return structured developer identity if token not configured yet
+        return {
+            "authenticated": False,
+            "username": "guest",
+            "name": "Guest Developer",
+            "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+            "org": "AutoPatch-CI Open Source",
+            "public_repos": 0,
+        }
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            "https://api.github.com/user",
+            headers={
+                "Authorization": f"Bearer {auth_token}",
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "AutoPatch-CI-Agent",
+            }
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "authenticated": True,
+                "username": data.get("login", "developer"),
+                "name": data.get("name") or data.get("login", "Developer"),
+                "avatar_url": data.get("avatar_url", ""),
+                "org": data.get("company") or "AutoPatch-CI Developer",
+                "public_repos": data.get("public_repos", 0),
+                "html_url": data.get("html_url", ""),
+            }
+        return {"authenticated": False, "error": "Invalid or expired GitHub token"}
+
+
+@app.get("/api/github/repos")
+async def get_user_repositories(token: Optional[str] = None) -> Dict[str, Any]:
+    """Fetch user repositories directly from GitHub REST API."""
+    import httpx
+    auth_token = token or (settings.github_token if settings.github_token != "mock-github-token" else None)
+
+    # If real token provided, fetch live repos from GitHub API
+    if auth_token:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                "https://api.github.com/user/repos?sort=updated&per_page=30&type=all",
+                headers={
+                    "Authorization": f"Bearer {auth_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "AutoPatch-CI-Agent",
+                }
+            )
+            if resp.status_code == 200:
+                repos_data = resp.json()
+                formatted = [
+                    {
+                        "id": str(r["id"]),
+                        "name": r["full_name"],
+                        "url": r["html_url"],
+                        "default_branch": r.get("default_branch", "main"),
+                        "private": r.get("private", False),
+                        "description": r.get("description") or "GitHub Repository",
+                        "updated_at": r.get("updated_at", ""),
+                    }
+                    for r in repos_data
+                ]
+                return {"repositories": formatted}
+
+    # Default fallback: return current repository
+    return {
+        "repositories": [
+            {
+                "id": "1",
+                "name": "Shaswati2005/autopatch-ci",
+                "url": "https://github.com/Shaswati2005/autopatch-ci",
+                "default_branch": "main",
+                "private": False,
+                "description": "Autonomous DevOps CI/CD Repair & Self-Healing Agent powered by Gemini",
+                "updated_at": "Just now",
+            }
+        ]
+    }
+
+
+@app.get("/api/github/repos/{owner}/{repo}/workflows")
+async def get_repo_workflows(owner: str, repo: str, token: Optional[str] = None) -> Dict[str, Any]:
+    """Fetch live GitHub Actions workflows for a repository."""
+    import httpx
+    auth_token = token or (settings.github_token if settings.github_token != "mock-github-token" else None)
+    
+    if auth_token:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/actions/workflows",
+                headers={
+                    "Authorization": f"Bearer {auth_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "AutoPatch-CI-Agent",
+                }
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {"workflows": data.get("workflows", [])}
+
+    return {
+        "workflows": [
+            {
+                "id": 101,
+                "name": "AutoPatch-CI Build & Verification Pipeline",
+                "path": ".github/workflows/ci.yml",
+                "state": "active",
+            }
+        ]
+    }
+
+

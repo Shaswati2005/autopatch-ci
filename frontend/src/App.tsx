@@ -1,18 +1,33 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Navbar, NavTab } from './components/Navbar';
+import { Sidebar, DashboardTab } from './components/Sidebar';
 import { LandingPage } from './views/LandingPage';
 import { DashboardOverview } from './views/DashboardOverview';
 import { RepositoriesView } from './views/RepositoriesView';
 import { IncidentsView } from './views/IncidentsView';
 import { SettingsView } from './views/SettingsView';
+import { AuthCallbackView } from './views/AuthCallbackView';
 import { StreamStatus } from './components/ConnectionStatus';
 import { TraceStep } from './types';
 
 export type { TraceStep };
 
 function AppContent() {
-  const [currentTab, setCurrentTab] = useState<NavTab>('landing');
+  const [currentTab, setCurrentTab] = useState<DashboardTab>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/auth-callback')) {
+      return 'overview';
+    }
+    return 'landing';
+  });
+
+  const [isAuthCallback, setIsAuthCallback] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.has('token') || urlParams.has('error') || window.location.pathname.includes('/auth-callback');
+    }
+    return false;
+  });
+
   const [runs, setRuns] = useState<string[]>([]);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [traces, setTraces] = useState<TraceStep[]>([]);
@@ -24,10 +39,8 @@ function AppContent() {
 
   const API_BASE =
     (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
-    (typeof process !== 'undefined' && process.env && (process.env.VITE_API_URL || process.env.NEXT_PUBLIC_API_URL)) ||
     'http://localhost:8000';
 
-  // Check backend health
   const checkHealth = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/health`);
@@ -37,7 +50,6 @@ function AppContent() {
     }
   }, [API_BASE]);
 
-  // Fetch runs list from backend
   const fetchRuns = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/runs`);
@@ -50,7 +62,6 @@ function AppContent() {
     } catch { /* silent */ }
   }, [API_BASE]);
 
-  // Fetch traces for a run
   const fetchTraces = useCallback(async (runId: string) => {
     try {
       const res = await fetch(`${API_BASE}/api/traces/${runId}`);
@@ -64,7 +75,6 @@ function AppContent() {
     }
   }, [API_BASE]);
 
-  // Health and runs periodic check
   useEffect(() => {
     checkHealth();
     fetchRuns();
@@ -75,7 +85,6 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [checkHealth, fetchRuns]);
 
-  // SSE Trace Subscription
   useEffect(() => {
     if (!selectedRun) {
       setStreamStatus('idle');
@@ -85,11 +94,8 @@ function AppContent() {
 
     setLoading(true);
     setStreamStatus('connecting');
-
-    // Fetch initial traces snapshot
     fetchTraces(selectedRun).finally(() => setLoading(false));
 
-    // Open real-time SSE stream
     try {
       const es = new EventSource(`${API_BASE}/api/traces/${selectedRun}/stream`);
       eventSourceRef.current = es;
@@ -123,7 +129,6 @@ function AppContent() {
       setStreamStatus('polling');
     }
 
-    // Polling fallback interval
     const pollInterval = setInterval(() => {
       if (streamStatus !== 'streaming') {
         fetchTraces(selectedRun);
@@ -136,11 +141,10 @@ function AppContent() {
     };
   }, [selectedRun, API_BASE]);
 
-  // Trigger CI Check against real connected workflows
   const handleTriggerCheck = async (
     repoName = 'Shaswati2005/autopatch-ci',
     branch = 'main',
-    workflowName = 'AutoPatch-CI Build & Verification Pipeline'
+    workflowName = 'CI / Pytest Suite'
   ) => {
     setTriggering(true);
     try {
@@ -158,7 +162,7 @@ function AppContent() {
         setTraces([]);
         setSelectedRun(data.run_id);
         fetchRuns();
-        setCurrentTab('incidents'); // Auto-navigate to live diagnostic workspace
+        setCurrentTab('incidents');
       }
     } catch (err) {
       console.error('Trigger demo failed', err);
@@ -167,27 +171,66 @@ function AppContent() {
     }
   };
 
+  // If receiving OAuth callback
+  if (isAuthCallback) {
+    return (
+      <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
+        <AuthCallbackView
+          onAuthSuccess={() => {
+            setIsAuthCallback(false);
+            setCurrentTab('overview');
+          }}
+          onAuthError={() => {
+            setIsAuthCallback(false);
+            setCurrentTab('overview');
+          }}
+        />
+      </div>
+    );
+  }
+
+  // If on Landing Page
+  if (currentTab === 'landing') {
+    return (
+      <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
+        <header className="border-b border-[#232838] bg-[#0b0d14]/90 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-[1280px] mx-auto px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#f1f1f4]">
+              <span className="w-2.5 h-2.5 rounded bg-[#7553f6]" />
+              AutoPatch-CI
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setCurrentTab('overview')}
+                className="btn-warp-primary text-xs"
+              >
+                Launch Console
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <LandingPage
+          onLaunchConsole={() => setCurrentTab('overview')}
+          runsCount={runs.length}
+        />
+      </div>
+    );
+  }
+
+  // Warp Full-Width App Shell with Persistent 240px Sidebar
   return (
-    <div className="min-h-screen bg-[#060b08] text-[#f0faf4] flex flex-col selection:bg-[#00f59b]/20 selection:text-[#00f59b]">
-      {/* Top Solarpunk Navbar */}
-      <Navbar
+    <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4] flex">
+      {/* 240px Persistent Sidebar */}
+      <Sidebar
         currentTab={currentTab}
         onTabChange={(tab) => setCurrentTab(tab)}
+        incidentsCount={runs.length}
         backendHealthy={backendHealthy}
       />
 
-      {/* Main View Router */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {currentTab === 'landing' && (
-          <LandingPage
-            onLaunchConsole={() => setCurrentTab('overview')}
-            onExploreIncidents={() => setCurrentTab('incidents')}
-            onConnectRepo={() => setCurrentTab('repositories')}
-            runsCount={runs.length}
-            latestRunId={selectedRun}
-          />
-        )}
-
+      {/* Fluid Main Content */}
+      <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">
         {currentTab === 'overview' && (
           <DashboardOverview
             runs={runs}
@@ -226,30 +269,6 @@ function AppContent() {
 
         {currentTab === 'settings' && <SettingsView />}
       </main>
-
-      {/* Solarpunk Footer */}
-      <footer className="border-t border-[#1b3022] bg-[#060b08] py-6 px-4 text-center text-xs font-mono text-[#557562]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[#00f59b]">🌿 AutoPatch-CI</span>
-            <span>— Photosynthetic DevOps Self-Healing Agent</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://github.com/Shaswati2005/autopatch-ci"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-[#00f59b] transition-colors"
-            >
-              GitHub Repository
-            </a>
-            <span>•</span>
-            <span>Gemini 2.5 Flash</span>
-            <span>•</span>
-            <span>Cloud Build Sandbox</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

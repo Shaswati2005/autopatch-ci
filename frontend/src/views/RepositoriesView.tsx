@@ -1,61 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { 
   GitBranch, 
-  ShieldCheck, 
   Plus, 
   Copy, 
   Check, 
   ExternalLink, 
   Zap, 
-  Settings, 
+  ShieldCheck, 
   RefreshCw,
   Terminal,
-  AlertCircle
+  Lock,
+  Globe
 } from 'lucide-react';
-
-interface Repository {
-  id: string;
-  name: string;
-  url: string;
-  defaultBranch: string;
-  workflowName: string;
-  active: boolean;
-  lastChecked: string;
-  status: 'protected' | 'paused' | 'pending';
-}
-
-const INITIAL_REPOS: Repository[] = [
-  {
-    id: 'repo-1',
-    name: 'Shaswati2005/autopatch-ci',
-    url: 'https://github.com/Shaswati2005/autopatch-ci',
-    defaultBranch: 'main',
-    workflowName: 'AutoPatch-CI Build & Verification Pipeline',
-    active: true,
-    lastChecked: '2 mins ago',
-    status: 'protected',
-  },
-  {
-    id: 'repo-2',
-    name: 'dasbidyendu/billing-core',
-    url: 'https://github.com/dasbidyendu/billing-core',
-    defaultBranch: 'main',
-    workflowName: 'CI / Pytest Suite',
-    active: true,
-    lastChecked: '14 mins ago',
-    status: 'protected',
-  },
-  {
-    id: 'repo-3',
-    name: 'acme/auth-service',
-    url: 'https://github.com/acme/auth-service',
-    defaultBranch: 'develop',
-    workflowName: 'CI / Auth Integration',
-    active: true,
-    lastChecked: '1 hour ago',
-    status: 'protected',
-  },
-];
 
 interface RepositoriesViewProps {
   onTriggerCheck: (repoName: string, branch: string, workflowName: string) => void;
@@ -66,64 +23,98 @@ export const RepositoriesView: React.FC<RepositoriesViewProps> = ({
   onTriggerCheck,
   triggering,
 }) => {
-  const [repos, setRepos] = useState<Repository[]>(INITIAL_REPOS);
+  const { user, fetchUserRepos } = useAuth();
+  const [repos, setRepos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedSecret, setCopiedSecret] = useState(false);
 
-  const webhookUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin.replace(':3000', ':8000')}/api/webhooks/github` 
+  const webhookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin.replace(':3000', ':8000')}/api/webhooks/github`
     : 'http://localhost:8000/api/webhooks/github';
-  const webhookSecret = 'autopatch_live_sec_8921x';
 
-  const toggleRepo = (id: string) => {
-    setRepos(repos.map((r) => r.id === id ? { ...r, active: !r.active, status: !r.active ? 'protected' : 'paused' } : r));
-  };
-
-  const copyToClipboard = (text: string, isSecret = false) => {
-    navigator.clipboard.writeText(text);
-    if (isSecret) {
-      setCopiedSecret(true);
-      setTimeout(() => setCopiedSecret(false), 2000);
-    } else {
-      setCopiedUrl(true);
-      setTimeout(() => setCopiedUrl(false), 2000);
+  const loadRepos = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchUserRepos();
+      if (Array.isArray(data) && data.length > 0) {
+        setRepos(data);
+      } else {
+        setRepos([
+          {
+            id: '1',
+            name: 'Shaswati2005/autopatch-ci',
+            url: 'https://github.com/Shaswati2005/autopatch-ci',
+            default_branch: 'main',
+            private: false,
+            description: 'Autonomous DevOps CI/CD Repair & Self-Healing Agent powered by Gemini',
+          }
+        ]);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadRepos();
+  }, []);
+
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-fade-in-up">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232838]">
         <div>
-          <h1 className="font-display font-bold text-2xl sm:text-3xl text-[#f0faf4]">
-            Connected GitHub Repositories
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-[#7553f6]">GitHub Integration</span>
+            <span className="text-[#5f6580] font-mono text-xs">/</span>
+            <span className="font-mono text-xs text-[#9aa1b3]">Repositories</span>
+          </div>
+          <h1 className="font-headline text-2xl sm:text-3xl text-[#f1f1f4] mt-1">
+            Connected Repositories
           </h1>
-          <p className="text-xs sm:text-sm text-[#94b8a3] mt-1">
-            AutoPatch-CI monitors GitHub Actions workflows on these repositories and initiates autonomous healing on failure.
-          </p>
         </div>
 
-        <button
-          onClick={() => setModalOpen(true)}
-          className="btn-solarpunk-primary px-4 py-2.5 text-xs font-display flex items-center gap-2 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4 text-[#041208]" />
-          Connect Repository
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadRepos}
+            disabled={loading}
+            className="btn-warp-secondary px-3 py-2 text-xs"
+            title="Refresh GitHub repositories"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="btn-warp-primary px-3.5 py-2 text-xs"
+          >
+            <Plus className="w-3.5 h-3.5 text-[#0b0d14]" />
+            Connect Webhook
+          </button>
+        </div>
       </div>
 
       {/* Repositories List */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="space-y-3">
         {repos.map((repo) => (
           <div
             key={repo.id}
-            className="solar-card rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-[#1b3022] hover:border-[#2d543a] transition-all"
+            className="warp-card p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-[#2e3447] transition-colors"
           >
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#00f59b]/10 border border-[#00f59b]/30 flex items-center justify-center text-[#00f59b]">
-                  <GitBranch className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-lg bg-[#11141d] border border-[#232838] flex items-center justify-center text-[#7553f6]">
+                  <GitBranch className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -131,125 +122,92 @@ export const RepositoriesView: React.FC<RepositoriesViewProps> = ({
                       href={repo.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-display font-bold text-base text-[#f0faf4] hover:text-[#00f59b] transition-colors flex items-center gap-1.5"
+                      className="font-mono text-sm font-bold text-[#f1f1f4] hover:text-[#7553f6] flex items-center gap-1.5 transition-colors"
                     >
                       {repo.name}
-                      <ExternalLink className="w-3.5 h-3.5 text-[#557562]" />
+                      <ExternalLink className="w-3 h-3 text-[#5f6580]" />
                     </a>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium border ${
-                      repo.active
-                        ? 'bg-[#00f59b]/15 text-[#00f59b] border-[#00f59b]/30'
-                        : 'bg-[#ff5c5c]/10 text-[#ff5c5c] border-[#ff5c5c]/30'
-                    }`}>
-                      {repo.active ? '● LIVE PROTECTION' : '○ PAUSED'}
-                    </span>
+                    {repo.private ? (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#11141d] text-[#9aa1b3] border border-[#2e3447] flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" /> private
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#11141d] text-[#5ee78a] border border-[#2e3447] flex items-center gap-1">
+                        <Globe className="w-2.5 h-2.5" /> public
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-[#94b8a3] font-mono mt-0.5">
-                    CI Workflow: <strong className="text-[#f0faf4]">{repo.workflowName}</strong> • Branch: <strong className="text-[#f5b700]">{repo.defaultBranch}</strong>
+                  <p className="text-xs text-[#9aa1b3] mt-0.5">
+                    {repo.description || 'GitHub Repository protected by AutoPatch-CI'}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-[#1b3022]">
-              <button
-                onClick={() => onTriggerCheck(repo.name, repo.defaultBranch, repo.workflowName)}
-                disabled={triggering}
-                className="btn-solarpunk-primary px-4 py-2 text-xs font-mono flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <Zap className="w-3.5 h-3.5 text-[#041208]" />
-                {triggering ? 'Verifying...' : 'Test CI Workflow'}
-              </button>
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-[#232838]">
+              <span className="text-[11px] font-mono text-[#5f6580]">
+                branch: <strong className="text-[#f1f1f4]">{repo.default_branch || 'main'}</strong>
+              </span>
 
               <button
-                onClick={() => toggleRepo(repo.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-mono transition-all border ${
-                  repo.active
-                    ? 'bg-[#0b140e] border-[#1b3022] text-[#94b8a3] hover:text-[#ff5c5c]'
-                    : 'bg-[#00f59b]/10 border-[#00f59b]/30 text-[#00f59b]'
-                }`}
+                onClick={() => onTriggerCheck(repo.name, repo.default_branch || 'main', 'CI / Pytest Suite')}
+                disabled={triggering}
+                className="btn-warp-primary text-xs"
               >
-                {repo.active ? 'Pause' : 'Resume'}
+                <Zap className="w-3.5 h-3.5 text-[#0b0d14]" />
+                {triggering ? 'Verifying...' : 'Run Self-Healing Check'}
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Connect Repository Modal */}
+      {/* Webhook Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#060b08]/80 backdrop-blur-md animate-fade-in-up">
-          <div className="solar-card rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 border border-[#00f59b]/30 shadow-[0_0_50px_rgba(0,245,155,0.15)] bg-[#0b140e]">
-            
-            <div className="flex items-center justify-between border-b border-[#1b3022] pb-4">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-[#00f59b]" />
-                <h3 className="font-display font-bold text-lg text-[#f0faf4]">
-                  Connect GitHub Webhook
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b0d14]/80 backdrop-blur-sm animate-fade-in-up">
+          <div className="warp-card max-w-lg w-full p-6 space-y-5 bg-[#161a25] border border-[#2e3447]">
+            <div className="flex items-center justify-between border-b border-[#232838] pb-3">
+              <h3 className="font-mono text-sm font-bold text-[#f1f1f4]">
+                Install GitHub CI Webhook
+              </h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="text-[#94b8a3] hover:text-[#f0faf4] font-mono text-sm"
+                className="text-[#9aa1b3] hover:text-[#f1f1f4] text-xs font-mono"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4 text-xs text-[#94b8a3]">
-              <p>
-                Add this webhook to your GitHub repository to enable autonomous failure interception:
-              </p>
-
-              {/* Webhook URL Input */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#f0faf4]">Payload URL</label>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#060b08] border border-[#1b3022]">
+            <div className="space-y-3 text-xs text-[#9aa1b3]">
+              <div className="space-y-1">
+                <label className="font-mono text-[11px] text-[#f1f1f4]">Payload URL</label>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-[#11141d] border border-[#2e3447]">
                   <input
                     readOnly
                     value={webhookUrl}
-                    className="bg-transparent font-mono text-xs text-[#00f59b] w-full outline-none"
+                    className="bg-transparent font-mono text-xs text-[#7553f6] w-full outline-none"
                   />
                   <button
-                    onClick={() => copyToClipboard(webhookUrl)}
-                    className="p-1.5 rounded-lg bg-[#15261b] hover:bg-[#00f59b]/20 text-[#00f59b] transition-colors"
+                    onClick={copyWebhook}
+                    className="p-1 rounded bg-[#1e2331] hover:bg-[#2e3447] text-[#f1f1f4] transition-colors"
                   >
-                    {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedUrl ? <Check className="w-3.5 h-3.5 text-[#5ee78a]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
               </div>
 
-              {/* Secret Token */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-mono text-[#f0faf4]">Secret (HMAC-SHA256)</label>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#060b08] border border-[#1b3022]">
-                  <input
-                    readOnly
-                    value={webhookSecret}
-                    className="bg-transparent font-mono text-xs text-[#f5b700] w-full outline-none"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(webhookSecret, true)}
-                    className="p-1.5 rounded-lg bg-[#15261b] hover:bg-[#f5b700]/20 text-[#f5b700] transition-colors"
-                  >
-                    {copiedSecret ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Setup steps */}
-              <div className="p-3.5 rounded-xl bg-[#060b08] border border-[#1b3022] space-y-1.5 text-[11px] font-mono">
-                <p className="text-[#f0faf4] font-semibold">GitHub Setup Checklist:</p>
-                <p>1. Go to Repo ➔ <strong>Settings</strong> ➔ <strong>Webhooks</strong> ➔ <strong>Add webhook</strong></p>
-                <p>2. Set Content type to <strong>application/json</strong></p>
-                <p>3. Select: <strong>Workflow runs</strong> and <strong>Check runs</strong></p>
+              <div className="p-3 rounded-lg bg-[#11141d] border border-[#232838] space-y-1 font-mono text-[11px]">
+                <p className="text-[#f1f1f4] font-bold">Quick Setup Guide:</p>
+                <p>1. Open Repository ➔ <strong>Settings</strong> ➔ <strong>Webhooks</strong></p>
+                <p>2. Set Content type: <strong>application/json</strong></p>
+                <p>3. Select: <strong>Workflow runs</strong> and <strong>Check suites</strong></p>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end pt-2">
               <button
                 onClick={() => setModalOpen(false)}
-                className="btn-solarpunk-primary px-5 py-2.5 text-xs font-mono"
+                className="btn-warp-primary text-xs"
               >
                 Done
               </button>
@@ -257,6 +215,7 @@ export const RepositoriesView: React.FC<RepositoriesViewProps> = ({
           </div>
         </div>
       )}
+
     </div>
   );
 };

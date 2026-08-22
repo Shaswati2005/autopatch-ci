@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ConnectionStatus, StreamStatus } from '../components/ConnectionStatus';
 import { PipelineTimeline } from '../components/PipelineTimeline';
 import { PullRequestCard } from '../components/PullRequestCard';
@@ -8,9 +8,6 @@ import {
   RefreshCw, 
   Zap, 
   GitBranch, 
-  GitCommit, 
-  Layers, 
-  Sparkles, 
   Terminal, 
   CheckCircle2, 
   ChevronRight,
@@ -41,60 +38,61 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   triggering,
 }) => {
   const prStep = traces.find((t) => t.stage === 'PR_CREATED');
-  const patchStep = traces.find((t) => t.stage === 'PATCH_GENERATED');
-  const [activeSubTab, setActiveSubTab] = useState<'timeline' | 'pr'>('timeline');
 
   return (
     <div className="space-y-6 animate-fade-in-up">
+      
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232838]">
         <div>
-          <h1 className="font-display font-bold text-2xl sm:text-3xl text-[#f0faf4]">
-            Autonomous Diagnostic Workspace
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-[#7553f6]">Diagnostic Trace</span>
+            <span className="text-[#5f6580] font-mono text-xs">/</span>
+            <span className="font-mono text-xs text-[#9aa1b3]">Incidents</span>
+          </div>
+          <h1 className="font-headline text-2xl sm:text-3xl text-[#f1f1f4] mt-1">
+            Autonomous Incident Diagnostics
           </h1>
-          <p className="text-xs sm:text-sm text-[#94b8a3] mt-1">
-            Real-time step-by-step reasoning telemetry emitted by the Gemini healing engine and sandbox runner.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={onTriggerCheck}
             disabled={triggering}
-            className="btn-solarpunk-primary px-4 py-2 text-xs font-display flex items-center gap-2 disabled:opacity-50"
+            className="btn-warp-primary px-3.5 py-2 text-xs"
           >
-            <Zap className="w-4 h-4 text-[#041208]" />
-            {triggering ? 'Healing...' : 'Trigger CI Check'}
+            <Zap className="w-3.5 h-3.5 text-[#0b0d14]" />
+            {triggering ? 'Verifying...' : 'Trigger CI Check'}
           </button>
           <button
             onClick={onRefresh}
-            className="btn-solarpunk-secondary p-2 text-xs font-mono flex items-center gap-1.5"
+            className="btn-warp-secondary p-2 text-xs"
             title="Refresh runs"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Main Split-Pane Workspace: Left Runs List + Right Diagnostic Visualizer */}
+      {/* Split-Pane Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left 4 Cols: Incidents & Runs List */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="solar-card rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase tracking-wider text-[#94b8a3]">
+        {/* Left 4 Cols: Incidents List */}
+        <div className="lg:col-span-4 space-y-3">
+          <div className="warp-card p-4 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-[#232838]">
+              <span className="text-xs font-mono font-bold text-[#f1f1f4] uppercase tracking-wider">
                 Workflow Runs ({runs.length})
               </span>
-              <span className="px-2 py-0.5 text-[10px] font-mono bg-[#00f59b]/10 text-[#00f59b] rounded border border-[#00f59b]/30">
+              <span className="text-[10px] font-mono text-[#5ee78a]">
                 live feed
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
               {runs.length === 0 ? (
-                <div className="py-12 text-center text-xs font-mono text-[#557562]">
-                  No runs recorded yet.<br />Click 'Trigger CI Check' above.
+                <div className="py-12 text-center text-xs font-mono text-[#5f6580]">
+                  No runs recorded yet.<br />Click 'Trigger CI Check' to begin.
                 </div>
               ) : (
                 runs.slice().reverse().map((runId) => {
@@ -103,25 +101,25 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                     <button
                       key={runId}
                       onClick={() => onSelectRun(runId)}
-                      className={`w-full text-left p-3.5 rounded-xl transition-all border flex items-center justify-between ${
+                      className={`w-full text-left p-3 rounded-lg transition-colors border flex items-center justify-between ${
                         isActive
-                          ? 'bg-[#15261b] border-[#00f59b]/40 shadow-[0_0_15px_rgba(0,245,155,0.15)] text-[#f0faf4]'
-                          : 'bg-[#060b08] border-[#1b3022] hover:border-[#2d543a] text-[#94b8a3]'
+                          ? 'bg-[#1e2331] border-[#7553f6] text-[#f1f1f4]'
+                          : 'bg-[#11141d] border-[#232838] hover:border-[#2e3447] text-[#9aa1b3]'
                       }`}
                     >
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#00f59b] shadow-[0_0_6px_#00f59b]' : 'bg-[#557562]'}`} />
+                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#7553f6]' : 'bg-[#5f6580]'}`} />
                           <span className="text-xs font-mono font-bold">
                             run/{runId}
                           </span>
                         </div>
-                        <p className="text-[10px] text-[#557562] font-mono pl-4">
+                        <p className="text-[10px] font-mono text-[#5f6580] pl-4">
                           Shaswati2005/autopatch-ci @ main
                         </p>
                       </div>
 
-                      <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#00f59b]' : 'text-[#557562]'}`} />
+                      <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-[#7553f6]' : 'text-[#5f6580]'}`} />
                     </button>
                   );
                 })
@@ -130,52 +128,48 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
           </div>
         </div>
 
-        {/* Right 8 Cols: Deep-Dive Diagnostic Workspace */}
+        {/* Right 8 Cols: Live Workspace */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="solar-card rounded-2xl overflow-hidden border border-[#1b3022]">
+          <div className="warp-card overflow-hidden bg-[#161a25] border border-[#232838]">
             
-            {/* Workspace Header Bar */}
-            <div className="px-6 py-4 bg-[#0b140e] border-b border-[#1b3022] flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#00f59b]/10 border border-[#00f59b]/30 flex items-center justify-center text-[#00f59b]">
-                  <Activity className="w-4 h-4" />
+            {/* Header Bar */}
+            <div className="px-5 py-3.5 bg-[#11141d] border-b border-[#232838] flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-md bg-[#161a25] border border-[#2e3447] flex items-center justify-center text-[#7553f6]">
+                  <Terminal className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-display font-bold text-sm text-[#f0faf4]">
-                      {selectedRun ? `Incident Trace: run/${selectedRun}` : 'Select an Incident'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#557562] font-mono">
-                    Target: Shaswati2005/autopatch-ci • Branch: main
-                  </p>
+                  <span className="font-mono text-xs font-bold text-[#f1f1f4] block">
+                    {selectedRun ? `Incident Trace: run/${selectedRun}` : 'Select an Incident'}
+                  </span>
+                  <span className="text-[10px] text-[#5f6580] font-mono block">
+                    Shaswati2005/autopatch-ci • main
+                  </span>
                 </div>
               </div>
 
               <ConnectionStatus status={streamStatus} runId={selectedRun} />
             </div>
 
-            {/* Workspace Content */}
+            {/* Content Area */}
             <div className="p-6">
               {loading && traces.length === 0 ? (
-                <div className="py-24 text-center space-y-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-[#00f59b] border-t-transparent animate-spin mx-auto" />
-                  <p className="text-xs font-mono text-[#94b8a3]">Retrieving agent reasoning telemetry...</p>
+                <div className="py-20 text-center space-y-3">
+                  <div className="w-6 h-6 border-2 border-[#7553f6] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs font-mono text-[#9aa1b3]">Retrieving reasoning telemetry...</p>
                 </div>
               ) : traces.length === 0 ? (
-                <div className="py-24 text-center space-y-3">
-                  <Sparkles className="w-10 h-10 text-[#557562] mx-auto" />
-                  <p className="font-display font-bold text-base text-[#f0faf4]">No Active Trace Selected</p>
-                  <p className="text-xs text-[#94b8a3] max-w-sm mx-auto">
+                <div className="py-20 text-center space-y-3">
+                  <Activity className="w-8 h-8 text-[#584774] mx-auto" />
+                  <p className="font-headline text-base text-[#f1f1f4]">No Active Trace Selected</p>
+                  <p className="text-xs text-[#9aa1b3] max-w-sm mx-auto">
                     Select a run from the sidebar or click 'Trigger CI Check' to execute the self-healing workflow.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Visual Stepper Timeline */}
                   <PipelineTimeline traces={traces} />
 
-                  {/* PR Card banner if PR stage reached */}
                   {prStep?.payload?.pr_url && (
                     <div className="pt-2 animate-fade-in-up">
                       <PullRequestCard

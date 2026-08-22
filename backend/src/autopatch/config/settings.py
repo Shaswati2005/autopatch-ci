@@ -14,10 +14,14 @@ class Settings(BaseSettings):
     gemini_api_key: str = "mock-gemini-key"
     gemini_model_name: str = "gemini-2.5-flash"
 
-    # GitHub Integration
+    # GitHub Integration & OAuth
     github_token: str = "mock-github-token"
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    frontend_url: str = "http://localhost:3000"
     github_app_id: str = "123456"
     github_webhook_secret: str = "dev-secret"
+
 
     # GCP Infrastructure
     gcp_project_id: str = "autopatch-dev-project"
