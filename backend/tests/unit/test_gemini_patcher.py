@@ -192,10 +192,12 @@ async def test_gemini_fallback_scenarios():
 async def test_call_gemini_api_httpx_branch(monkeypatch):
     import sys
     # Remove google from sys.modules to trigger ImportError branch
-    monkeypatch.delitem(sys.modules, "google", raising=False)
-    monkeypatch.delitem(sys.modules, "google.genai", raising=False)
+    # Set sys.modules to None to trigger ImportError on import attempt
+    monkeypatch.setitem(sys.modules, "google", None)
+    monkeypatch.setitem(sys.modules, "google.genai", None)
 
     adapter = GeminiLLMPatcherAdapter(api_key="valid-test-key")
+
 
     class MockResponse:
         status_code = 200
