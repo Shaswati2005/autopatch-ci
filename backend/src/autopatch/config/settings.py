@@ -28,9 +28,10 @@ class Settings(BaseSettings):
 
     # LLM Settings
     gemini_api_key: str = "mock-gemini-key"
-    gemini_model_name: str = "gemini-2.5-flash"
+    gemini_model_name: str = "gemini-flash-latest"
 
     # GitHub Integration & OAuth
+
     github_token: str = "mock-github-token"
     github_client_id: str = ""
     github_client_secret: str = ""
