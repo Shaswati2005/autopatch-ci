@@ -5,6 +5,7 @@ import App from '../App';
 
 describe('Warp x Sentry Dashboard & Landing Page Integration', () => {
   beforeEach(() => {
+    localStorage.clear();
     class MockEventSource {
       addEventListener = vi.fn();
       onerror = null;
@@ -110,13 +111,26 @@ describe('Warp x Sentry Dashboard & Landing Page Integration', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders Warp x Sentry landing page with Rubik headline and lilac CTA', async () => {
+  it('renders landing page with Sign in with GitHub button when unauthenticated', async () => {
     render(<App />);
     expect(screen.getByText(/Self-Healing CI\/CD For High-Velocity Teams/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Launch Console/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Sign in with GitHub/i).length).toBeGreaterThan(0);
   });
 
-  it('navigates from landing to console overview and sidebar tabs', async () => {
+  it('navigates to console overview and sidebar tabs when authenticated', async () => {
+    // Set token in localStorage
+    localStorage.setItem('autopatch_gh_token', 'test-token');
+    localStorage.setItem(
+      'autopatch_user_profile',
+      JSON.stringify({
+        username: 'dasbidyendu',
+        name: 'Bidyendu Das',
+        avatarUrl: '',
+        org: 'AutoPatch-CI Team',
+        publicRepos: 5,
+      })
+    );
+
     render(<App />);
 
     // Click Launch Console
@@ -137,7 +151,19 @@ describe('Warp x Sentry Dashboard & Landing Page Integration', () => {
     });
   });
 
-  it('triggers CI workflow repair from overview', async () => {
+  it('triggers CI workflow repair from overview when authenticated', async () => {
+    localStorage.setItem('autopatch_gh_token', 'test-token');
+    localStorage.setItem(
+      'autopatch_user_profile',
+      JSON.stringify({
+        username: 'dasbidyendu',
+        name: 'Bidyendu Das',
+        avatarUrl: '',
+        org: 'AutoPatch-CI Team',
+        publicRepos: 5,
+      })
+    );
+
     render(<App />);
 
     // Launch console

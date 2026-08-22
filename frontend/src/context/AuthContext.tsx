@@ -32,27 +32,19 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Only restore from localStorage if a real token was previously saved
   const [token, setToken] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('autopatch_gh_token') || 'dev_session_token_active';
+      return localStorage.getItem('autopatch_gh_token') || null;
     } catch {
-      return 'dev_session_token_active';
+      return null;
     }
   });
 
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const cached = localStorage.getItem('autopatch_user_profile');
-      return cached
-        ? JSON.parse(cached)
-        : {
-            username: 'dasbidyendu',
-            name: 'Bidyendu Das',
-            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-            org: 'Shaswati2005 / AutoPatch-CI Team',
-            publicRepos: 5,
-            token: 'dev_session_token_active',
-          };
+      return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
     }
@@ -82,13 +74,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             localStorage.setItem('autopatch_user_profile', JSON.stringify(profile));
           } catch { /* ignore */ }
+          return;
         }
       }
-    } catch { /* silent */ }
+      // If token invalid, clear session
+      logout();
+    } catch {
+      // Offline/network fail
+    }
   };
 
   useEffect(() => {
-    if (token) {
+    if (token && !user) {
       fetchProfile(token);
     }
   }, [token]);
@@ -115,10 +112,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    const activeToken = token || 'dev_session_token_active';
+    if (!token) {
+      logout();
+      return new Response(JSON.stringify({ detail: 'Unauthenticated' }), { status: 401 });
+    }
+
     const headers = {
       ...(options.headers || {}),
-      Authorization: `Bearer ${activeToken}`,
+      Authorization: `Bearer ${token}`,
     };
 
     const res = await fetch(url, { ...options, headers });
