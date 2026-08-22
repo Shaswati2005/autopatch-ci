@@ -146,22 +146,32 @@ class AutoPatchHealingPipeline:
             return False, None
 
         # Stage 5: PR_CREATED
-        pr_info = await self.git_provider.create_pull_request(event, final_patch, final_verification)
-        await self._log_step(
-            run_id,
-            PipelineStage.PR_CREATED,
-            "5. GitHub PR Opened",
-            f"Successfully opened Pull Request #{pr_info.pr_number} on branch `{pr_info.branch_name}`",
-            {
-                "pr_url": pr_info.html_url,
-                "pr_number": pr_info.pr_number,
-                "branch": pr_info.branch_name,
-                "title": pr_info.title,
-                "repo": event.repo,
-            },
-        )
+        try:
+            pr_info = await self.git_provider.create_pull_request(event, final_patch, final_verification)
+            await self._log_step(
+                run_id,
+                PipelineStage.PR_CREATED,
+                "5. GitHub PR Opened",
+                f"Successfully opened Pull Request #{pr_info.pr_number} on branch `{pr_info.branch_name}`",
+                {
+                    "pr_url": pr_info.html_url,
+                    "pr_number": pr_info.pr_number,
+                    "branch": pr_info.branch_name,
+                    "title": pr_info.title,
+                    "repo": event.repo,
+                },
+            )
+            return True, pr_info
+        except Exception as e:
+            await self._log_step(
+                run_id,
+                PipelineStage.FAILED,
+                "GitHub PR Delivery Failed",
+                f"Could not open PR on GitHub: {str(e)}",
+                {"error": str(e), "repo": event.repo},
+            )
+            return False, None
 
-        return True, pr_info
 
     async def _log_step(
         self,

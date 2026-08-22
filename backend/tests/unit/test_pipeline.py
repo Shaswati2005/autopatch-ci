@@ -44,13 +44,25 @@ async def test_gemini_patcher_generates_code_and_test():
 @pytest.mark.asyncio
 async def test_full_pipeline_execution():
     trace_store = InMemoryTraceStoreAdapter()
+    class StubGit(GitHubAppAdapter):
+        async def create_pull_request(self, event, patch, verification):
+            from autopatch.domain.models import PullRequestInfo
+            return PullRequestInfo(
+                pr_number=99,
+                html_url=f"https://github.com/{event.repo}/pull/99",
+                branch_name=f"autopatch/fix-{event.run_id}",
+                title="AutoPatch-CI Fix",
+                body_markdown="Summary",
+            )
+
     pipeline = AutoPatchHealingPipeline(
         log_parser=CILogParserAdapter(),
         llm_patcher=GeminiLLMPatcherAdapter(),
         verifier=CloudBuildVerificationAdapter(),
-        git_provider=GitHubAppAdapter(),
+        git_provider=StubGit(),
         trace_store=trace_store
     )
+
 
     event = CIFailureEvent(
         repo="acme/demo-repo",

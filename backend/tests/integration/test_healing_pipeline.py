@@ -7,8 +7,23 @@ from autopatch.adapters.gemini_llm import GeminiLLMPatcherAdapter
 from autopatch.adapters.github_app import GitHubAppAdapter
 from autopatch.adapters.log_parser import CILogParserAdapter
 from autopatch.adapters.trace_store import InMemoryTraceStoreAdapter
-from autopatch.domain.models import CIFailureEvent, PipelineStage
+from autopatch.domain.models import CIFailureEvent, PipelineStage, PullRequestInfo
+from autopatch.domain.ports import GitProviderPort
 from autopatch.pipelines.healing_pipeline import AutoPatchHealingPipeline
+
+
+class StubGitProvider(GitProviderPort):
+    async def get_file_content(self, repo: str, file_path: str, ref: str) -> str:
+        return "def process(): return True"
+
+    async def create_pull_request(self, event, patch, verification) -> PullRequestInfo:
+        return PullRequestInfo(
+            pr_number=101,
+            html_url=f"https://github.com/{event.repo}/pull/101",
+            branch_name=f"autopatch/fix-{event.run_id}",
+            title=f"Fix {event.workflow_name}",
+            body_markdown="Summary",
+        )
 
 
 @pytest.mark.asyncio
@@ -18,7 +33,7 @@ async def test_full_pipeline_single_turn_success():
         log_parser=CILogParserAdapter(),
         llm_patcher=GeminiLLMPatcherAdapter(),
         verifier=CloudBuildVerificationAdapter(simulated_pass_on_attempt=1),
-        git_provider=GitHubAppAdapter(),
+        git_provider=StubGitProvider(),
         trace_store=trace_store,
     )
 
@@ -53,7 +68,7 @@ async def test_full_pipeline_multi_turn_healing():
         log_parser=CILogParserAdapter(),
         llm_patcher=GeminiLLMPatcherAdapter(),
         verifier=CloudBuildVerificationAdapter(simulated_pass_on_attempt=2),  # Fails attempt 1, passes attempt 2
-        git_provider=GitHubAppAdapter(),
+        git_provider=StubGitProvider(),
         trace_store=trace_store,
     )
 
@@ -71,8 +86,6 @@ async def test_full_pipeline_multi_turn_healing():
 
     traces = await trace_store.get_traces("run-multi-turn")
     stages = [t.stage for t in traces]
-    # Ingested -> Logs Parsed -> Patch 1 -> Verifying
-    # -> Verifying (Failed) -> Patch 2 -> Verifying -> Verified -> PR Created
     assert PipelineStage.INGESTED in stages
     assert PipelineStage.LOGS_PARSED in stages
     assert stages.count(PipelineStage.PATCH_GENERATED) == 2
@@ -88,7 +101,7 @@ async def test_full_pipeline_max_retries_exhausted():
         log_parser=CILogParserAdapter(),
         llm_patcher=GeminiLLMPatcherAdapter(),
         verifier=CloudBuildVerificationAdapter(simulated_pass_on_attempt=99),  # Always fails
-        git_provider=GitHubAppAdapter(),
+        git_provider=StubGitProvider(),
         trace_store=trace_store,
     )
 
