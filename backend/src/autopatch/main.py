@@ -3,18 +3,21 @@
 import json
 from typing import Any, AsyncGenerator, Dict, Optional
 
-from fastapi import BackgroundTasks, FastAPI
+from fastapi import BackgroundTasks, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
 
 from autopatch.adapters.cloud_build import CloudBuildVerificationAdapter
 from autopatch.adapters.gemini_llm import GeminiLLMPatcherAdapter
 from autopatch.adapters.github_app import GitHubAppAdapter
 from autopatch.adapters.log_parser import CILogParserAdapter
+from autopatch.adapters.supabase_store import SupabaseTraceStoreAdapter
 from autopatch.adapters.trace_store import global_trace_store
 from autopatch.config.settings import settings
 from autopatch.domain.models import CIFailureEvent
+from autopatch.middleware.auth import require_authenticated_user
 from autopatch.pipelines.healing_pipeline import AutoPatchHealingPipeline
 
 app = FastAPI(
@@ -32,7 +35,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instantiate Hexagonal Pipeline Adapters
+# Instantiate Hexagonal Pipeline Adapters with Supabase Store
+trace_store = SupabaseTraceStoreAdapter() if (settings.supabase_url and settings.supabase_key) else global_trace_store
 log_parser = CILogParserAdapter()
 llm_patcher = GeminiLLMPatcherAdapter()
 verifier = CloudBuildVerificationAdapter()
@@ -43,7 +47,7 @@ pipeline = AutoPatchHealingPipeline(
     llm_patcher=llm_patcher,
     verifier=verifier,
     git_provider=git_provider,
-    trace_store=global_trace_store
+    trace_store=trace_store
 )
 
 
@@ -91,7 +95,11 @@ async def github_webhook(payload: Dict[str, Any], background_tasks: BackgroundTa
 
 
 @app.post("/api/trigger-demo", status_code=202)
-async def trigger_demo(request: TriggerDemoRequest, background_tasks: BackgroundTasks) -> Dict[str, str]:
+async def trigger_demo(
+    request: TriggerDemoRequest,
+    background_tasks: BackgroundTasks,
+    auth_user: Dict[str, Any] = Depends(require_authenticated_user),
+) -> Dict[str, str]:
     """Trigger an autonomous CI build repair run with real repository context."""
     import random
     run_id = str(random.randint(100000, 999999))
@@ -117,26 +125,32 @@ async def trigger_demo(request: TriggerDemoRequest, background_tasks: Background
 
 
 @app.get("/api/runs")
-def get_runs() -> Dict[str, Any]:
+def get_runs(auth_user: Dict[str, Any] = Depends(require_authenticated_user)) -> Dict[str, Any]:
     """Retrieve all processed workflow run IDs."""
-    runs = global_trace_store.get_all_runs()
+    runs = trace_store.get_all_runs()
     return {"runs": runs}
 
 
 @app.get("/api/traces/{run_id}")
-async def get_run_traces(run_id: str) -> Dict[str, Any]:
+async def get_run_traces(
+    run_id: str,
+    auth_user: Dict[str, Any] = Depends(require_authenticated_user),
+) -> Dict[str, Any]:
     """Retrieve execution trace steps for a specific workflow run ID."""
-    traces = await global_trace_store.get_traces(run_id)
+    traces = await trace_store.get_traces(run_id)
     return {"run_id": run_id, "traces": [t.model_dump(mode="json") for t in traces]}
 
 
 @app.get("/api/traces/{run_id}/stream")
-async def stream_run_traces(run_id: str) -> StreamingResponse:
+async def stream_run_traces(
+    run_id: str,
+    auth_user: Dict[str, Any] = Depends(require_authenticated_user),
+) -> StreamingResponse:
     """Stream real-time diagnostic trace steps using Server-Sent Events (SSE)."""
 
     async def event_generator() -> AsyncGenerator[str, None]:
         try:
-            async for trace in global_trace_store.stream_traces(run_id):
+            async for trace in trace_store.stream_traces(run_id):
                 trace_json = json.dumps(trace.model_dump(mode="json"))
                 yield f"event: trace\ndata: {trace_json}\n\n"
             yield "event: done\ndata: {}\n\n"
@@ -152,6 +166,7 @@ async def stream_run_traces(run_id: str) -> StreamingResponse:
             "X-Accel-Buffering": "no",
         },
     )
+
 
 
 # ── Real GitHub OAuth & REST API Endpoints ─────────────────────────────────────

@@ -23,10 +23,16 @@ class Settings(BaseSettings):
     github_webhook_secret: str = "dev-secret"
 
 
+    # Supabase / Database Integration
+    supabase_url: str = ""
+    supabase_key: str = ""
+    database_url: str = ""
+
     # GCP Infrastructure
     gcp_project_id: str = "autopatch-dev-project"
     pubsub_topic_name: str = "ci-failure-events"
     verification_strategy: str = "mock"  # Options: 'cloud_build', 'local_docker', 'mock'
+
 
     # Pipeline Thresholds
     max_patch_attempts: int = 3
