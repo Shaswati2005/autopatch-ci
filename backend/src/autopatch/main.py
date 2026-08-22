@@ -224,10 +224,10 @@ async def github_oauth_callback(code: Optional[str] = None, error: Optional[str]
 async def get_current_user(token: Optional[str] = None) -> Dict[str, Any]:
     """Fetch authenticated user profile directly from GitHub REST API."""
     import httpx
-    auth_token = token or (settings.github_token if settings.github_token != "mock-github-token" else None)
+    auth_token = token
     
     if not auth_token:
-        # Return structured developer identity if token not configured yet
+        # Return structured unauthenticated developer identity
         return {
             "authenticated": False,
             "username": "guest",
@@ -236,6 +236,7 @@ async def get_current_user(token: Optional[str] = None) -> Dict[str, Any]:
             "org": "AutoPatch-CI Open Source",
             "public_repos": 0,
         }
+
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.get(

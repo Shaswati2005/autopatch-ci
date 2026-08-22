@@ -1,6 +1,22 @@
-"""Configuration settings for AutoPatch-CI using Pydantic Settings."""
-
+from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Determine candidate paths for .env
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent  # Repository Root
+BACKEND_DIR = BASE_DIR / "backend"
+
+ENV_FILES = [
+    str(BACKEND_DIR / ".env"),
+    str(BASE_DIR / ".env"),
+    "backend/.env",
+    ".env",
+]
+
+# Explicitly load into environment
+for env_path in ENV_FILES:
+    if Path(env_path).is_file():
+        load_dotenv(env_path, override=True)
 
 
 class Settings(BaseSettings):
@@ -22,7 +38,6 @@ class Settings(BaseSettings):
     github_app_id: str = "123456"
     github_webhook_secret: str = "dev-secret"
 
-
     # Supabase / Database Integration
     supabase_url: str = ""
     supabase_key: str = ""
@@ -33,15 +48,15 @@ class Settings(BaseSettings):
     pubsub_topic_name: str = "ci-failure-events"
     verification_strategy: str = "mock"  # Options: 'cloud_build', 'local_docker', 'mock'
 
-
     # Pipeline Thresholds
     max_patch_attempts: int = 3
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
 
 settings = Settings()
+

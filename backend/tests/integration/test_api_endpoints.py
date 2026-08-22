@@ -8,9 +8,10 @@ from httpx import ASGITransport, AsyncClient
 
 from autopatch.adapters.trace_store import global_trace_store
 from autopatch.domain.models import DiagnosticTraceStep, PipelineStage
-from autopatch.main import app
+from autopatch.main import app, trace_store
 
 AUTH_HEADERS: Dict[str, str] = {"Authorization": "Bearer test-dev-token"}
+
 
 
 @pytest.mark.asyncio
@@ -87,7 +88,7 @@ async def test_runs_and_traces_endpoints_authenticated():
         detail="Payload ingested",
         payload={"repo": "acme/demo"},
     )
-    await global_trace_store.save_trace(test_run_id, step)
+    await trace_store.save_trace(test_run_id, step)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -127,9 +128,10 @@ async def test_sse_trace_stream_authenticated():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         async def delayed_producer():
             await asyncio.sleep(0.05)
-            await global_trace_store.save_trace(stream_run_id, step1)
+            await trace_store.save_trace(stream_run_id, step1)
             await asyncio.sleep(0.05)
-            await global_trace_store.save_trace(stream_run_id, step2)
+            await trace_store.save_trace(stream_run_id, step2)
+
 
         producer_task = asyncio.create_task(delayed_producer())
 
