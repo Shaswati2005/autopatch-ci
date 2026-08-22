@@ -1,4 +1,4 @@
-﻿"""AutoPatch-CI Pipeline: Orchestrates ADK agent or sequential fallback for CI self-healing."""
+"""AutoPatch-CI Pipeline: Orchestrates ADK agent or sequential fallback for CI self-healing."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ class AutoPatchHealingPipeline:
         parser = CILogParserAdapter(token=github_token)
         log_analysis = parser.parse_log_text(raw_logs or event.raw_log or "", run_id)
 
-        target_file = log_analysis.target_file_path or "src/main.py"
+        target_file = log_analysis.target_file_path or "backend/src/autopatch/main.py"
         branch = event.branch or "main"
 
         # ── Step 2: Fetch failing file content ───────────────────────────────

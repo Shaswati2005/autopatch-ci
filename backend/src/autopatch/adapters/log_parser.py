@@ -193,7 +193,8 @@ FAILED src/calculator.py::test_calculate_tax - TypeError: unsupported operand ty
         # 6. Fallback for noisy or unparseable logs
         return (
             "UnhandledBuildError",
-            "src/calculator.py",
-            1,
+            "backend/src/autopatch/main.py",
+            124,
             "Build failed with unclassified failure trace."
         )
+
