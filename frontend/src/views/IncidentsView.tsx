@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ConnectionStatus, StreamStatus } from '../components/ConnectionStatus';
 import { PipelineTimeline } from '../components/PipelineTimeline';
 import { PullRequestCard } from '../components/PullRequestCard';
+import { PRCommandCenterModal } from '../components/PRCommandCenterModal';
+import { PRCopilotChat } from '../components/PRCopilotChat';
 import { TraceStep } from '../types';
 import { 
   Activity, 
@@ -11,7 +13,9 @@ import {
   Terminal, 
   CheckCircle2, 
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles,
+  GitMerge
 } from 'lucide-react';
 
 interface IncidentsViewProps {
@@ -37,7 +41,12 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
   onTriggerCheck,
   triggering,
 }) => {
+  const [showCommandCenter, setShowCommandCenter] = useState(false);
+  const [showCopilot, setShowCopilot] = useState(false);
+
   const prStep = traces.find((t) => t.stage === 'PR_CREATED');
+  const patchStep = traces.find((t) => t.stage === 'PATCH_GENERATED');
+  const diffSnippet = patchStep?.payload?.diff || '';
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -56,14 +65,33 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {prStep?.payload?.pr_url && (
+            <button
+              onClick={() => setShowCommandCenter(true)}
+              className="btn-warp-primary px-3.5 py-2 text-xs flex items-center gap-1.5"
+            >
+              <GitMerge className="w-3.5 h-3.5 text-[#0b0d14]" />
+              PR Command Center
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowCopilot(true)}
+            className="btn-warp-secondary px-3.5 py-2 text-xs flex items-center gap-1.5 text-[#7553f6]"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Gemini Copilot
+          </button>
+
           <button
             onClick={onTriggerCheck}
             disabled={triggering}
-            className="btn-warp-primary px-3.5 py-2 text-xs"
+            className="btn-warp-secondary px-3.5 py-2 text-xs"
           >
-            <Zap className="w-3.5 h-3.5 text-[#0b0d14]" />
+            <Zap className="w-3.5 h-3.5 text-[#7553f6]" />
             {triggering ? 'Verifying...' : 'Trigger CI Check'}
           </button>
+
           <button
             onClick={onRefresh}
             className="btn-warp-secondary p-2 text-xs"
@@ -171,13 +199,20 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                   <PipelineTimeline traces={traces} />
 
                   {prStep?.payload?.pr_url && (
-                    <div className="pt-2 animate-fade-in-up">
+                    <div className="pt-2 animate-fade-in-up space-y-3">
                       <PullRequestCard
                         prUrl={prStep.payload.pr_url}
                         prNumber={prStep.payload.pr_number as number | undefined}
                         branch={prStep.payload.branch}
                         repo={prStep.payload.repo}
                       />
+                      <button
+                        onClick={() => setShowCommandCenter(true)}
+                        className="w-full btn-warp-primary py-2.5 text-xs font-medium flex items-center justify-center gap-2"
+                      >
+                        <GitMerge className="w-3.5 h-3.5 text-[#0b0d14]" />
+                        Open PR Command Center & Merge
+                      </button>
                     </div>
                   )}
                 </div>
@@ -187,6 +222,32 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
         </div>
 
       </div>
+
+      {/* PR Command Center Modal */}
+      {prStep?.payload?.pr_url && (
+        <PRCommandCenterModal
+          isOpen={showCommandCenter}
+          onClose={() => setShowCommandCenter(false)}
+          prUrl={prStep.payload.pr_url}
+          prNumber={(prStep.payload.pr_number as number) || 1}
+          branchName={prStep.payload.branch || 'autopatch/fix'}
+          repo={prStep.payload.repo || 'Shaswati2005/autopatch-ci'}
+          diffSnippet={diffSnippet}
+          runId={selectedRun || '999'}
+          onOpenCopilot={() => setShowCopilot(true)}
+        />
+      )}
+
+      {/* Gemini PR Copilot Chat Drawer */}
+      <PRCopilotChat
+        isOpen={showCopilot}
+        onClose={() => setShowCopilot(false)}
+        currentCode={diffSnippet || 'def fix(): return True'}
+        onApplyRefinedCode={(refined) => {
+          console.log('Applied refined code:', refined);
+        }}
+      />
+
     </div>
   );
 };

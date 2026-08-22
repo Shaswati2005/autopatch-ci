@@ -324,3 +324,43 @@ def test_autopatch_regression_null_boundary():
             rationale=rationale,
             attempt_number=attempt,
         )
+
+    async def refine_patch(
+        self,
+        current_code: str,
+        user_instruction: str,
+        file_path: str = "backend/src/autopatch/main.py",
+    ) -> str:
+        """Refines generated code patch using Gemini with natural language developer instructions."""
+        prompt = f"""You are Gemini Copilot Assistant inside AutoPatch-CI.
+A developer wants to refine the generated code fix.
+
+Current Code:
+```
+{current_code}
+```
+
+Developer's Instruction:
+"{user_instruction}"
+
+Respond ONLY with the complete refined code block. Do NOT include markdown explanations or conversational text.
+"""
+        if self.api_key and self.api_key != "mock-gemini-key":
+            try:
+                response = await self._call_gemini_api(prompt)
+                # Clean response
+                cleaned = response.strip()
+                if cleaned.startswith("```"):
+                    lines = cleaned.split("\n")
+                    if lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].startswith("```"):
+                        lines = lines[:-1]
+                    cleaned = "\n".join(lines)
+                return cleaned
+            except Exception as e:
+                print(f"[GeminiCopilot] Refine call error: {e}")
+
+        # Fallback refinement
+        return f"{current_code}\n# [Copilot Refined]: {user_instruction}\n"
+

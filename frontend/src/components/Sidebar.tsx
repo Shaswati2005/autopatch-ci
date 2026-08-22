@@ -48,6 +48,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user, isAuthenticated, loginWithGitHub, logout, authFetch } = useAuth();
   const [actionRuns, setActionRuns] = useState<WorkflowRunItem[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
+  const [healMode, setHealMode] = useState<'autonomous' | 'supervised'>('autonomous');
+
 
   const API_BASE =
     (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
@@ -171,6 +173,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </nav>
 
+        {/* Auto-Heal Daemon Mode Switcher */}
+        {isAuthenticated && (
+          <div className="p-2.5 rounded-lg bg-[#11141d] border border-[#232838] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-[#5f6580] uppercase tracking-wider font-semibold">
+                Auto-Heal Daemon
+              </span>
+              <span className="w-2 h-2 rounded-full bg-[#5ee78a] animate-pulse" />
+            </div>
+            <div className="grid grid-cols-2 gap-1 bg-[#0b0d14] p-1 rounded-md border border-[#232838]">
+              <button
+                onClick={() => setHealMode('autonomous')}
+                className={`py-1 text-[10px] font-mono rounded transition-colors ${
+                  healMode === 'autonomous'
+                    ? 'bg-[#7553f6] text-[#0b0d14] font-bold'
+                    : 'text-[#9aa1b3] hover:text-[#f1f1f4]'
+                }`}
+              >
+                ⚡ Autonomous
+              </button>
+              <button
+                onClick={() => setHealMode('supervised')}
+                className={`py-1 text-[10px] font-mono rounded transition-colors ${
+                  healMode === 'supervised'
+                    ? 'bg-[#1e2331] text-[#7553f6] border border-[#2e3447] font-bold'
+                    : 'text-[#9aa1b3] hover:text-[#f1f1f4]'
+                }`}
+              >
+                🛡️ Supervised
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Live GitHub Actions CI Runs Section */}
         {isAuthenticated && (
           <div className="pt-2 space-y-2 border-t border-[#232838]">
@@ -178,6 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] font-mono uppercase tracking-wider text-[#5f6580] font-semibold">
                 GitHub Action Runs
               </span>
+
               <span className="w-1.5 h-1.5 rounded-full bg-[#5ee78a] animate-pulse" />
             </div>
 
