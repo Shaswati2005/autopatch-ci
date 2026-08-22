@@ -24,6 +24,12 @@ This board tracks cross-agent tasks, work-in-progress locks, and feature roadmap
 | **`TSK-008`** | `backend` | GitHub App adapter: branch creation, multi-file commit & PR description | `@agent-backend` | `[DONE]` | P2 | 2026-08-21 |
 | **`TSK-009`** | `backend` | Complete unit & integration test suite satisfying GitHub Actions CI | `@agent-backend` | `[DONE]` | P1 | 2026-08-21 |
 | **`TSK-010`** | `ci` | Verify GitHub Actions workflow (`ci.yml`: Ruff, Mypy, Pytest & Docker builds) | `@agent-backend` | `[DONE]` | P1 | 2026-08-21 |
+| **`TSK-011`** | `fullstack` | Live GitHub Actions log fetcher and live GitHub Action runs in sidebar with 1-click heal | `@agent-backend` | `[DONE]` | P1 | 2026-08-22 |
+| **`TSK-012`** | `frontend` | PR Command Center & Merge Modal with 1-Click Squash & Merge + Re-run checks | `@agent-frontend` | `[DONE]` | P1 | 2026-08-22 |
+| **`TSK-013`** | `fullstack` | Interactive Gemini PR Copilot drawer for natural language code refinement | `@agent-backend` | `[DONE]` | P1 | 2026-08-22 |
+| **`TSK-014`** | `fullstack` | DevOps Taskmaster CI Health Radar & Flaky Test Intelligence Matrix | `@agent-frontend` | `[DONE]` | P1 | 2026-08-22 |
+| **`TSK-015`** | `backend` | Direct Gemini Flash-Latest model connectivity & real repository file targeting | `@agent-backend` | `[DONE]` | P0 | 2026-08-22 |
+
 
 ---
 
