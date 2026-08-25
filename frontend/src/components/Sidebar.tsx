@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Activity, 
@@ -9,28 +9,11 @@ import {
   Zap, 
   Github, 
   LogOut, 
-  ExternalLink,
-  ShieldAlert,
-  Sparkles,
-  Play,
-  ChevronDown,
-  CalendarDays
+  CalendarDays,
+  Sparkles
 } from 'lucide-react';
 
 export type DashboardTab = 'landing' | 'overview' | 'repositories' | 'incidents' | 'calendar' | 'settings';
-
-
-export interface WorkflowRunItem {
-  id: string;
-  name: string;
-  status: string;
-  conclusion: string;
-  branch: string;
-  commit_sha: string;
-  commit_message: string;
-  html_url: string;
-  created_at: string;
-}
 
 interface SidebarProps {
   currentTab: DashboardTab;
@@ -45,70 +28,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   incidentsCount,
   backendHealthy,
-  onTriggerRun,
 }) => {
-  const { user, isAuthenticated, loginWithGitHub, logout, authFetch } = useAuth();
-  const [actionRuns, setActionRuns] = useState<WorkflowRunItem[]>([]);
-  const [loadingRuns, setLoadingRuns] = useState(false);
+  const { user, isAuthenticated, loginWithGitHub, logout } = useAuth();
   const [healMode, setHealMode] = useState<'autonomous' | 'supervised'>('autonomous');
 
-
-  const API_BASE =
-    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
-    'http://localhost:8000';
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchActionRuns = async () => {
-      setLoadingRuns(true);
-      try {
-        const res = await authFetch(`${API_BASE}/api/github/repos/Shaswati2005/autopatch-ci/actions/runs`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.workflow_runs)) {
-            setActionRuns(data.workflow_runs);
-          }
-        }
-      } catch {
-        /* silent */
-      } finally {
-        setLoadingRuns(false);
-      }
-    };
-
-    fetchActionRuns();
-    const interval = setInterval(fetchActionRuns, 10000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated, authFetch, API_BASE]);
-
   return (
-    <aside className="w-60 flex-shrink-0 bg-[#0b0d14] border-r border-[#232838] flex flex-col justify-between h-screen sticky top-0 select-none overflow-y-auto">
+    <aside className="w-[240px] flex-shrink-0 bg-surface border-r border-border flex flex-col justify-between h-screen sticky top-0 select-none overflow-y-auto z-20 transition-all duration-200">
       
       {/* Top Header & Brand */}
-      <div className="p-4 space-y-5">
+      <div className="p-4 space-y-4">
         
-        {/* Warp Terminal Brand Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#232838]">
+        {/* Brand Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-border">
           <button
             onClick={() => onTabChange('overview')}
             className="flex items-center gap-2.5 text-left focus:outline-none group"
           >
-            <div className="w-7 h-7 rounded-lg bg-[#161a25] border border-[#2e3447] flex items-center justify-center text-[#7553f6] group-hover:border-[#7553f6] transition-colors">
+            <div className="w-7 h-7 rounded-[8px] bg-surface-2 border border-border-strong flex items-center justify-center text-accent group-hover:border-accent transition-colors">
               <Terminal className="w-4 h-4" />
             </div>
             <div>
-              <span className="font-mono text-xs font-bold text-[#f1f1f4] tracking-tight block">
-                AutoPatch<span className="text-[#7553f6]">-CI</span>
+              <span className="font-mono text-[13px] font-bold text-text tracking-tight block">
+                AutoPatch<span className="text-accent">-CI</span>
               </span>
-              <span className="text-[10px] font-mono text-[#5f6580] block">
-                Warp × Sentry v0.3
+              <span className="text-[11px] font-mono text-text-dim block">
+                Autonomous DevOps
               </span>
             </div>
           </button>
 
           <span
-            className={`w-2 h-2 rounded-full ${backendHealthy ? 'bg-[#5ee78a]' : 'bg-[#f6827d]'}`}
+            className={`w-2 h-2 rounded-full ${backendHealthy ? 'bg-success' : 'bg-danger'}`}
             title={backendHealthy ? 'Backend API Online' : 'Backend API Disconnected'}
           />
         </div>
@@ -117,205 +67,147 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <nav className="space-y-1">
           <button
             onClick={() => onTabChange('overview')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
               currentTab === 'overview'
-                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
-                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+                ? 'bg-surface-2 text-text border border-border-strong'
+                : 'text-text-muted hover:text-text hover:bg-surface-2/60'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Layers className="w-4 h-4 text-[#7553f6]" />
+              <Layers className={`w-4 h-4 ${currentTab === 'overview' ? 'text-accent' : 'text-text-dim'}`} />
               <span>Overview</span>
             </div>
           </button>
 
           <button
             onClick={() => onTabChange('incidents')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
               currentTab === 'incidents'
-                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
-                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+                ? 'bg-surface-2 text-text border border-border-strong'
+                : 'text-text-muted hover:text-text hover:bg-surface-2/60'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Activity className="w-4 h-4 text-[#ff7a59]" />
+              <Activity className={`w-4 h-4 ${currentTab === 'incidents' ? 'text-accent' : 'text-text-dim'}`} />
               <span>Incidents & Traces</span>
             </div>
-            <span className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-[#161a25] text-[#ff7a59] border border-[#2e3447] tabular-nums">
-              {incidentsCount}
-            </span>
+            {incidentsCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-medium bg-bg-alt text-warning border border-border tabular-nums">
+                {incidentsCount}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => onTabChange('repositories')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
               currentTab === 'repositories'
-                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
-                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+                ? 'bg-surface-2 text-text border border-border-strong'
+                : 'text-text-muted hover:text-text hover:bg-surface-2/60'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <GitBranch className="w-4 h-4 text-[#9aa1b3]" />
+              <GitBranch className={`w-4 h-4 ${currentTab === 'repositories' ? 'text-accent' : 'text-text-dim'}`} />
               <span>Repositories</span>
             </div>
           </button>
 
           <button
             onClick={() => onTabChange('calendar')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
               currentTab === 'calendar'
-                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
-                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+                ? 'bg-surface-2 text-text border border-border-strong'
+                : 'text-text-muted hover:text-text hover:bg-surface-2/60'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <CalendarDays className="w-4 h-4 text-[#7553f6]" />
+              <CalendarDays className={`w-4 h-4 ${currentTab === 'calendar' ? 'text-accent' : 'text-text-dim'}`} />
               <span>CI Calendar</span>
             </div>
           </button>
 
           <button
             onClick={() => onTabChange('settings')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-[8px] text-[13px] font-medium transition-colors ${
               currentTab === 'settings'
-                ? 'bg-[#1e2331] text-[#f1f1f4] border border-[#2e3447]'
-                : 'text-[#9aa1b3] hover:text-[#f1f1f4] hover:bg-[#161a25]'
+                ? 'bg-surface-2 text-text border border-border-strong'
+                : 'text-text-muted hover:text-text hover:bg-surface-2/60'
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <Settings className="w-4 h-4 text-[#9aa1b3]" />
+              <Settings className={`w-4 h-4 ${currentTab === 'settings' ? 'text-accent' : 'text-text-dim'}`} />
               <span>Settings</span>
             </div>
           </button>
         </nav>
 
-
         {/* Auto-Heal Daemon Mode Switcher */}
         {isAuthenticated && (
-          <div className="p-2.5 rounded-lg bg-[#11141d] border border-[#232838] space-y-2">
+          <div className="p-3 rounded-[8px] bg-bg-alt border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-[#5f6580] uppercase tracking-wider font-semibold">
+              <span className="text-[11px] font-mono text-text-dim uppercase tracking-wider font-semibold">
                 Auto-Heal Daemon
               </span>
-              <span className="w-2 h-2 rounded-full bg-[#5ee78a] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-success" />
             </div>
-            <div className="grid grid-cols-2 gap-1 bg-[#0b0d14] p-1 rounded-md border border-[#232838]">
+            <div className="grid grid-cols-2 gap-1 bg-surface p-0.5 rounded-[8px] border border-border">
               <button
                 onClick={() => setHealMode('autonomous')}
-                className={`py-1 text-[10px] font-mono rounded transition-colors ${
+                className={`py-1 text-[11px] font-mono rounded-[6px] transition-colors ${
                   healMode === 'autonomous'
-                    ? 'bg-[#7553f6] text-[#0b0d14] font-bold'
-                    : 'text-[#9aa1b3] hover:text-[#f1f1f4]'
+                    ? 'bg-accent text-bg font-medium'
+                    : 'text-text-muted hover:text-text'
                 }`}
               >
-                ⚡ Autonomous
+                Auto
               </button>
               <button
                 onClick={() => setHealMode('supervised')}
-                className={`py-1 text-[10px] font-mono rounded transition-colors ${
+                className={`py-1 text-[11px] font-mono rounded-[6px] transition-colors ${
                   healMode === 'supervised'
-                    ? 'bg-[#1e2331] text-[#7553f6] border border-[#2e3447] font-bold'
-                    : 'text-[#9aa1b3] hover:text-[#f1f1f4]'
+                    ? 'bg-surface-2 text-text font-medium border border-border-strong'
+                    : 'text-text-muted hover:text-text'
                 }`}
               >
-                🛡️ Supervised
+                Supervised
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* Live GitHub Actions CI Runs Section */}
-        {isAuthenticated && (
-          <div className="pt-2 space-y-2 border-t border-[#232838]">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#5f6580] font-semibold">
-                GitHub Action Runs
-              </span>
-
-              <span className="w-1.5 h-1.5 rounded-full bg-[#5ee78a] animate-pulse" />
-            </div>
-
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {actionRuns.length === 0 ? (
-                <div className="p-2 rounded bg-[#11141d] border border-[#232838] text-[10px] font-mono text-[#5f6580]">
-                  {loadingRuns ? 'Fetching live runs...' : 'No GitHub runs found'}
-                </div>
-              ) : (
-                actionRuns.slice(0, 5).map((run) => {
-                  const isFail = run.conclusion === 'failure';
-                  return (
-                    <div
-                      key={run.id}
-                      className="p-2 rounded-md bg-[#11141d] border border-[#232838] hover:border-[#2e3447] text-[11px] font-mono space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              isFail ? 'bg-[#f6827d]' : run.conclusion === 'success' ? 'bg-[#5ee78a]' : 'bg-[#ff7a59]'
-                            }`}
-                          />
-                          <span className="truncate text-[#f1f1f4] font-medium text-[10px]">
-                            {run.name}
-                          </span>
-                        </div>
-                        <span className="text-[9px] text-[#5f6580]">#{run.commit_sha}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-0.5">
-                        <span className="text-[9px] text-[#5f6580] truncate max-w-[110px]">
-                          {run.branch}
-                        </span>
-                        {isFail && onTriggerRun && (
-                          <button
-                            onClick={() => onTriggerRun('Shaswati2005/autopatch-ci', run.branch, run.name)}
-                            className="px-1.5 py-0.5 rounded bg-[#7553f6]/20 text-[#7553f6] hover:bg-[#7553f6]/30 text-[9px] font-mono flex items-center gap-0.5"
-                          >
-                            <Zap className="w-2.5 h-2.5" /> Heal
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
             </div>
           </div>
         )}
 
         {/* Marketing / Landing Switcher Link */}
-        <div className="pt-1">
+        <div className="pt-2">
           <button
             onClick={() => onTabChange('landing')}
-            className="w-full text-left px-3 py-2 rounded-lg text-xs font-mono text-[#5f6580] hover:text-[#9aa1b3] hover:bg-[#11141d] flex items-center gap-2 transition-colors"
+            className="w-full text-left px-3 py-2 rounded-[8px] text-[12px] font-mono text-text-dim hover:text-text hover:bg-surface-2/40 flex items-center gap-2 transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#7553f6]" />
-            Marketing Page
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            Landing Page
           </button>
         </div>
       </div>
 
       {/* Bottom User Profile or Real GitHub OAuth */}
-      <div className="p-3 border-t border-[#232838] bg-[#11141d]">
+      <div className="p-3 border-t border-border bg-surface-2">
         {isAuthenticated && user ? (
-          <div className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-[#161a25] border border-[#232838]">
+          <div className="flex items-center justify-between gap-2 p-2 rounded-[8px] bg-bg-alt border border-border">
             <div className="flex items-center gap-2 overflow-hidden">
               {user.avatarUrl ? (
                 <img
                   src={user.avatarUrl}
                   alt={user.name || user.username}
-                  className="w-7 h-7 rounded-md object-cover border border-[#2e3447]"
+                  className="w-6 h-6 rounded-[6px] object-cover border border-border"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-md bg-[#1e2331] flex items-center justify-center font-mono text-xs text-[#7553f6]">
+                <div className="w-6 h-6 rounded-[6px] bg-surface-2 border border-border flex items-center justify-center font-mono text-[11px] text-accent">
                   {user.username.slice(0, 2).toUpperCase()}
                 </div>
               )}
               <div className="overflow-hidden">
-                <span className="text-xs font-medium text-[#f1f1f4] truncate block">
+                <span className="text-[12px] font-medium text-text truncate block">
                   {user.name || user.username}
                 </span>
-                <span className="text-[10px] font-mono text-[#5f6580] truncate block">
+                <span className="text-[11px] font-mono text-text-dim truncate block">
                   @{user.username}
                 </span>
               </div>
@@ -324,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-1.5 rounded-md hover:bg-[#1e2331] text-[#5f6580] hover:text-[#f6827d] transition-colors"
+              className="p-1 rounded-[6px] hover:bg-surface-2 text-text-dim hover:text-danger transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -332,9 +224,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <button
             onClick={loginWithGitHub}
-            className="w-full btn-warp-primary py-2 text-xs font-medium flex items-center justify-center gap-2"
+            className="w-full btn-primary py-2 text-[13px] font-medium flex items-center justify-center gap-2"
           >
-            <Github className="w-3.5 h-3.5" />
+            <Github className="w-3.5 h-3.5 text-bg" />
             Sign in with GitHub
           </button>
         )}

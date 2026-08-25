@@ -20,40 +20,34 @@ for env_path in ENV_FILES:
 
 
 class Settings(BaseSettings):
-    """Application configuration settings loaded from environment or .env file."""
+    """Application configuration settings for AutoPatch-CI."""
 
     app_name: str = "AutoPatch-CI Agent API"
     environment: str = "development"
     debug: bool = True
 
-    # LLM Settings
-    gemini_api_key: str = "mock-gemini-key"
-    gemini_model_name: str = "gemini-flash-latest"
+    # Google GenAI / Gemini Settings
+    gemini_api_key: str = ""
+    gemini_model_name: str = "gemini-2.0-flash"
+
+    # Google Cloud Platform Infrastructure & Firestore
+    gcp_project_id: str = ""
+    gcp_location: str = "us-central1"
+    google_application_credentials: str = ""
+    firestore_database: str = "(default)"
+    gcp_service_account_key_path: str = ""
 
     # GitHub Integration & OAuth
-
-    github_token: str = "mock-github-token"
     github_client_id: str = ""
     github_client_secret: str = ""
+    github_webhook_secret: str = ""
+    github_token: str = ""
     frontend_url: str = "http://localhost:3000"
-    github_app_id: str = "123456"
-    github_webhook_secret: str = "dev-secret"
 
-    # Supabase / Database Integration
-    supabase_url: str = ""
-    supabase_key: str = ""
-    database_url: str = ""
-
-    # GCP Infrastructure
-    gcp_project_id: str = "autopatch-dev-project"
-    gcp_location: str = "us-central1"
-    gcp_service_account_key_path: str = ""   # Path to SA JSON key for Cloud Build
-    pubsub_topic_name: str = "ci-failure-events"
-    verification_strategy: str = "mock"  # Options: 'cloud_build', 'local_docker', 'mock'
+    # Agent & Verification Settings
     adk_agent_enabled: bool = True
-
-    # Pipeline Thresholds
     max_patch_attempts: int = 3
+    verification_strategy: str = "cloud_build"  # 'cloud_build' or 'local_sandbox'
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILES,
@@ -63,4 +57,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
 

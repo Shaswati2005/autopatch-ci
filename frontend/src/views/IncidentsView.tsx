@@ -9,11 +9,8 @@ import {
   Activity, 
   RefreshCw, 
   Zap, 
-  GitBranch, 
   Terminal, 
-  CheckCircle2, 
   ChevronRight,
-  ShieldCheck,
   Sparkles,
   GitMerge
 } from 'lucide-react';
@@ -52,32 +49,32 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
     <div className="space-y-6 animate-fade-in-up">
       
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232838]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[#7553f6]">Diagnostic Trace</span>
-            <span className="text-[#5f6580] font-mono text-xs">/</span>
-            <span className="font-mono text-xs text-[#9aa1b3]">Incidents</span>
+          <div className="flex items-center gap-2 text-[12px] font-mono">
+            <span className="text-accent">Diagnostic Trace</span>
+            <span className="text-text-dim">/</span>
+            <span className="text-text-muted">Incidents</span>
           </div>
-          <h1 className="font-headline text-2xl sm:text-3xl text-[#f1f1f4] mt-1">
+          <h1 className="font-headline text-[24px] sm:text-[26px] text-text font-semibold mt-1 tracking-tight">
             Autonomous Incident Diagnostics
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {prStep?.payload?.pr_url && (
             <button
               onClick={() => setShowCommandCenter(true)}
-              className="btn-warp-primary px-3.5 py-2 text-xs flex items-center gap-1.5"
+              className="btn-primary text-[12px] flex items-center gap-2"
             >
-              <GitMerge className="w-3.5 h-3.5 text-[#0b0d14]" />
+              <GitMerge className="w-3.5 h-3.5 text-bg" />
               PR Command Center
             </button>
           )}
 
           <button
             onClick={() => setShowCopilot(true)}
-            className="btn-warp-secondary px-3.5 py-2 text-xs flex items-center gap-1.5 text-[#7553f6]"
+            className="btn-secondary text-[12px] flex items-center gap-2 text-accent border-border-strong hover:border-accent"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Gemini Copilot
@@ -86,15 +83,15 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
           <button
             onClick={onTriggerCheck}
             disabled={triggering}
-            className="btn-warp-secondary px-3.5 py-2 text-xs"
+            className="btn-secondary text-[12px] flex items-center gap-2"
           >
-            <Zap className="w-3.5 h-3.5 text-[#7553f6]" />
+            <Zap className="w-3.5 h-3.5 text-accent" />
             {triggering ? 'Verifying...' : 'Trigger CI Check'}
           </button>
 
           <button
             onClick={onRefresh}
-            className="btn-warp-secondary p-2 text-xs"
+            className="btn-secondary p-2 text-[12px]"
             title="Refresh runs"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -107,19 +104,20 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
         
         {/* Left 4 Cols: Incidents List */}
         <div className="lg:col-span-4 space-y-3">
-          <div className="warp-card p-4 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#232838]">
-              <span className="text-xs font-mono font-bold text-[#f1f1f4] uppercase tracking-wider">
+          <div className="warp-card p-4 space-y-3 bg-surface border border-border">
+            <div className="flex items-center justify-between pb-2.5 border-b border-border">
+              <span className="text-[11px] font-mono font-bold text-text uppercase tracking-wider">
                 Workflow Runs ({runs.length})
               </span>
-              <span className="text-[10px] font-mono text-[#5ee78a]">
+              <span className="text-[10px] font-mono text-success flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 live feed
               </span>
             </div>
 
-            <div className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-[560px] overflow-y-auto pr-1">
               {runs.length === 0 ? (
-                <div className="py-12 text-center text-xs font-mono text-[#5f6580]">
+                <div className="py-12 text-center text-[12px] font-mono text-text-dim">
                   No runs recorded yet.<br />Click 'Trigger CI Check' to begin.
                 </div>
               ) : (
@@ -129,25 +127,25 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                     <button
                       key={runId}
                       onClick={() => onSelectRun(runId)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors border flex items-center justify-between ${
+                      className={`w-full text-left p-3 rounded-[8px] transition-colors border flex items-center justify-between ${
                         isActive
-                          ? 'bg-[#1e2331] border-[#7553f6] text-[#f1f1f4]'
-                          : 'bg-[#11141d] border-[#232838] hover:border-[#2e3447] text-[#9aa1b3]'
+                          ? 'bg-surface-2 border-accent text-text'
+                          : 'bg-bg-alt border-border hover:border-border-strong text-text-muted'
                       }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#7553f6]' : 'bg-[#5f6580]'}`} />
-                          <span className="text-xs font-mono font-bold">
+                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-accent' : 'bg-text-dim'}`} />
+                          <span className="text-[12px] font-mono font-bold">
                             run/{runId}
                           </span>
                         </div>
-                        <p className="text-[10px] font-mono text-[#5f6580] pl-4">
-                          AutoPatch Run #{runId} • ADK Agent
+                        <p className="text-[11px] font-mono text-text-dim pl-4">
+                          AutoPatch Run #{runId} • Firestore
                         </p>
                       </div>
 
-                      <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-[#7553f6]' : 'text-[#5f6580]'}`} />
+                      <ChevronRight className={`w-3.5 h-3.5 ${isActive ? 'text-accent' : 'text-text-dim'}`} />
                     </button>
                   );
                 })
@@ -158,20 +156,20 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
 
         {/* Right 8 Cols: Live Workspace */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="warp-card overflow-hidden bg-[#161a25] border border-[#232838]">
+          <div className="warp-card overflow-hidden bg-surface border border-border">
             
             {/* Header Bar */}
-            <div className="px-5 py-3.5 bg-[#11141d] border-b border-[#232838] flex flex-wrap items-center justify-between gap-3">
+            <div className="px-5 py-3.5 bg-bg-alt border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-md bg-[#161a25] border border-[#2e3447] flex items-center justify-center text-[#7553f6]">
+                <div className="w-7 h-7 rounded-[8px] bg-surface-2 border border-border flex items-center justify-center text-accent">
                   <Terminal className="w-3.5 h-3.5" />
                 </div>
                 <div>
-                  <span className="font-mono text-xs font-bold text-[#f1f1f4] block">
+                  <span className="font-mono text-[13px] font-bold text-text block">
                     {selectedRun ? `Incident Trace: run/${selectedRun}` : 'Select an Incident'}
                   </span>
-                  <span className="text-[10px] text-[#5f6580] font-mono block">
-                    Shaswati2005/autopatch-ci • main
+                  <span className="text-[11px] text-text-dim font-mono block">
+                    {prStep?.payload?.repo || 'Live AutoPatch Stream'}
                   </span>
                 </div>
               </div>
@@ -180,26 +178,28 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
             </div>
 
             {/* Content Area */}
-            <div className="p-6">
+            <div className="p-5">
               {loading && traces.length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <div className="w-6 h-6 border-2 border-[#7553f6] border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-xs font-mono text-[#9aa1b3]">Retrieving reasoning telemetry...</p>
+                <div className="py-16 text-center space-y-3">
+                  <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-[12px] font-mono text-text-muted">Retrieving reasoning telemetry...</p>
                 </div>
               ) : traces.length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <Activity className="w-8 h-8 text-[#584774] mx-auto" />
-                  <p className="font-headline text-base text-[#f1f1f4]">No Active Trace Selected</p>
-                  <p className="text-xs text-[#9aa1b3] max-w-sm mx-auto">
+                <div className="py-16 text-center space-y-2.5">
+                  <div className="w-10 h-10 rounded-[8px] bg-accent-soft/20 border border-border flex items-center justify-center mx-auto text-accent-soft">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <p className="font-headline text-[17px] text-text font-semibold">No Active Trace Selected</p>
+                  <p className="text-[12px] text-text-muted max-w-sm mx-auto font-sans">
                     Select a run from the sidebar or click 'Trigger CI Check' to execute the self-healing workflow.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <PipelineTimeline traces={traces} />
 
                   {prStep?.payload?.pr_url && (
-                    <div className="pt-2 animate-fade-in-up space-y-3">
+                    <div className="pt-2 space-y-3 animate-fade-in-up">
                       <PullRequestCard
                         prUrl={prStep.payload.pr_url}
                         prNumber={prStep.payload.pr_number as number | undefined}
@@ -208,9 +208,9 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
                       />
                       <button
                         onClick={() => setShowCommandCenter(true)}
-                        className="w-full btn-warp-primary py-2.5 text-xs font-medium flex items-center justify-center gap-2"
+                        className="w-full btn-primary py-2.5 text-[13px] font-medium flex items-center justify-center gap-2"
                       >
-                        <GitMerge className="w-3.5 h-3.5 text-[#0b0d14]" />
+                        <GitMerge className="w-4 h-4 text-bg" />
                         Open PR Command Center & Merge
                       </button>
                     </div>
@@ -231,7 +231,7 @@ export const IncidentsView: React.FC<IncidentsViewProps> = ({
           prUrl={prStep.payload.pr_url}
           prNumber={(prStep.payload.pr_number as number) || 1}
           branchName={prStep.payload.branch || 'autopatch/fix'}
-          repo={prStep.payload.repo || 'Shaswati2005/autopatch-ci'}
+          repo={prStep.payload.repo || 'repository'}
           diffSnippet={diffSnippet}
           runId={selectedRun || '999'}
           onOpenCopilot={() => setShowCopilot(true)}

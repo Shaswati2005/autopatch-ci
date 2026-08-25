@@ -3,16 +3,16 @@ import { TraceStep } from '../types';
 import { DiffViewer } from './DiffViewer';
 import { TerminalOutput } from './TerminalOutput';
 
-const STAGE_CONFIG: Record<string, { icon: string; label: string; color: string; glow: string }> = {
-  INGESTED:            { icon: '📡', label: 'Event Ingested',   color: '#8888aa', glow: 'rgba(136,136,170,0.20)' },
-  LOGS_PARSED:         { icon: '🔍', label: 'Logs Diagnosed',  color: '#60a5fa', glow: 'rgba(59,130,246,0.22)'  },
-  PATCH_GENERATED:     { icon: '🤖', label: 'Patch Generated', color: '#a78bfa', glow: 'rgba(139,92,246,0.25)'  },
-  VERIFYING:           { icon: '⚙️', label: 'Verifying…',     color: '#f59e0b', glow: 'rgba(245,158,11,0.22)'  },
-  VERIFIED:            { icon: '✅', label: 'Verified',        color: '#4ade80', glow: 'rgba(74,222,128,0.25)'  },
-  VERIFICATION_PASSED: { icon: '✅', label: 'Verified',        color: '#4ade80', glow: 'rgba(74,222,128,0.25)'  },
-  VERIFICATION_FAILED: { icon: '❌', label: 'Verify Failed',   color: '#f87171', glow: 'rgba(248,113,113,0.25)' },
-  PR_CREATED:          { icon: '🚀', label: 'PR Delivered',    color: '#4ade80', glow: 'rgba(74,222,128,0.30)'  },
-  FAILED:              { icon: '💥', label: 'Pipeline Failed', color: '#f87171', glow: 'rgba(248,113,113,0.25)' },
+const STAGE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
+  INGESTED:            { icon: '📡', label: 'Event Ingested',   color: '#9aa1b3' },
+  LOGS_PARSED:         { icon: '🔍', label: 'Logs Diagnosed',  color: '#7553f6' },
+  PATCH_GENERATED:     { icon: '🤖', label: 'Patch Generated', color: '#8967ff' },
+  VERIFYING:           { icon: '⚙️', label: 'Verifying…',     color: '#ff7a59' },
+  VERIFIED:            { icon: '✅', label: 'Verified',        color: '#5ee78a' },
+  VERIFICATION_PASSED: { icon: '✅', label: 'Verified',        color: '#5ee78a' },
+  VERIFICATION_FAILED: { icon: '❌', label: 'Verify Failed',   color: '#f6827d' },
+  PR_CREATED:          { icon: '🚀', label: 'PR Delivered',    color: '#5ee78a' },
+  FAILED:              { icon: '💥', label: 'Pipeline Failed', color: '#f6827d' },
 };
 
 interface PipelineTimelineProps {
@@ -27,97 +27,67 @@ export const PipelineTimeline: React.FC<PipelineTimelineProps> = ({ traces }) =>
       {traces.map((step, idx) => {
         const cfg = STAGE_CONFIG[step.stage] ?? {
           icon: '◆', label: step.stage,
-          color: 'var(--text-secondary)', glow: 'rgba(136,136,170,0.15)',
+          color: '#9aa1b3',
         };
         const isPatch        = step.stage === 'PATCH_GENERATED' && step.payload?.diff;
         const isVerification = (step.stage === 'VERIFIED' || step.stage === 'VERIFICATION_PASSED' || step.stage === 'VERIFICATION_FAILED') && step.payload?.test_output;
         const isLast         = idx === traces.length - 1;
-        const delay          = `${idx * 80}ms`;
 
         return (
           <div
             key={step.step_id || idx}
-            className="relative flex gap-4 animate-slide-up"
-            style={{ animationDelay: delay }}
+            className="relative flex gap-3.5"
             data-testid={`trace-step-${idx}`}
           >
-            {/* ── Neon connector strand */}
+            {/* Connector Line */}
             {!isLast && (
               <div
                 className="absolute z-0"
                 style={{
-                  left: 19, top: 40, bottom: 0,
+                  left: 17, top: 36, bottom: 0,
                   width: 2,
-                  background: `linear-gradient(to bottom, ${cfg.color}40, transparent)`,
+                  backgroundColor: '#232838',
                 }}
               />
             )}
 
-            {/* ── Stage icon bubble */}
+            {/* Stage Icon */}
             <div
-              className="relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center z-10 mt-0.5"
+              className="relative flex-shrink-0 w-9 h-9 rounded-[8px] flex items-center justify-center z-10 mt-0.5 bg-surface-2 border text-[14px]"
               style={{
-                background: `rgba(0,0,0,0.5)`,
-                border: `1px solid ${cfg.color}50`,
-                boxShadow: `0 0 16px ${cfg.glow}, 0 0 6px ${cfg.glow}`,
-                fontSize: '15px',
-                backdropFilter: 'blur(8px)',
+                borderColor: cfg.color,
               }}
             >
               {cfg.icon}
             </div>
 
-            {/* ── Content card */}
-            <div className="flex-1 pb-5">
-              <div
-                className="rounded-xl p-4 transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Stage-colored top accent strip */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute', top: 0, left: '10%', right: '10%', height: 1,
-                    background: `linear-gradient(90deg, transparent, ${cfg.color}60, transparent)`,
-                  }}
-                />
-
+            {/* Content card: Warp surface pattern */}
+            <div className="flex-1 pb-4">
+              <div className="warp-card p-4 bg-surface border border-border">
                 {/* Header row */}
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-md"
+                      className="text-[11px] font-mono font-medium px-2 py-0.5 rounded"
                       style={{
-                        background: `${cfg.color}18`,
+                        backgroundColor: `${cfg.color}15`,
                         color: cfg.color,
-                        border: `1px solid ${cfg.color}30`,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        letterSpacing: '0.03em',
+                        border: `1px solid ${cfg.color}35`,
                       }}
                     >
                       {cfg.label}
                     </span>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-[13px] font-medium text-text">
                       {step.title}
                     </span>
                   </div>
-                  <span
-                    className="text-xs hidden sm:block"
-                    style={{ color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}
-                  >
+                  <span className="text-[11px] hidden sm:block text-text-dim font-mono tabular-nums">
                     {new Date(step.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
 
                 {/* Detail text */}
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-[12px] leading-relaxed text-text-muted">
                   {step.detail}
                 </p>
 
@@ -145,29 +115,22 @@ export const PipelineTimeline: React.FC<PipelineTimelineProps> = ({ traces }) =>
 
                 {/* Generic key-value payload */}
                 {!isPatch && !isVerification && step.payload && Object.keys(step.payload).length > 0 && (
-                  <div
-                    className="mt-3 rounded-lg p-3 text-xs space-y-1 overflow-x-auto"
-                    style={{
-                      background: 'rgba(0,0,0,0.25)',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                  >
+                  <div className="mt-3 rounded-[8px] p-3 text-[11px] font-mono space-y-1 bg-bg-alt border border-border">
                     {Object.entries(step.payload).map(([k, v]) => (
-                      <div key={k} className="flex gap-3 items-center">
-                        <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{k}:</span>
+                      <div key={k} className="flex gap-2.5 items-center">
+                        <span className="text-text-dim flex-shrink-0">{k}:</span>
                         {typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://')) ? (
                           <a
                             href={v}
                             target="_blank"
                             rel="noreferrer"
-                            className="underline hover:opacity-80 transition-opacity"
-                            style={{ color: '#7553f6', wordBreak: 'break-all' }}
+                            className="underline text-accent hover:text-accent-hover transition-colors"
+                            style={{ wordBreak: 'break-all' }}
                           >
                             {v} ↗
                           </a>
                         ) : (
-                          <span style={{ color: 'var(--accent-neon)', wordBreak: 'break-all' }}>{String(v)}</span>
+                          <span className="text-text" style={{ wordBreak: 'break-all' }}>{String(v)}</span>
                         )}
                       </div>
                     ))}
@@ -181,5 +144,3 @@ export const PipelineTimeline: React.FC<PipelineTimelineProps> = ({ traces }) =>
     </div>
   );
 };
-
-

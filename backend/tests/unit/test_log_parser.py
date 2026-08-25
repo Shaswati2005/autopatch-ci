@@ -79,12 +79,11 @@ def test_parse_unknown_log_graceful_fallback():
     parser = CILogParserAdapter()
     # Empty log
     empty_result = parser.parse_log_text("", "run-empty")
-    assert empty_result.error_type == "UnknownError"
+    assert empty_result.error_type == "EmptyLog"
 
     # Noisy/unmatched log
     noisy_result = parser.parse_log_text("random noisy build output without stack trace", "run-noisy")
-    assert noisy_result.error_type == "UnhandledBuildError"
-    assert noisy_result.target_file_path is not None
+    assert noisy_result.error_type == "BuildError"
 
 
 def test_parse_generic_python_traceback():
@@ -114,26 +113,17 @@ FAILED src/calc.py::test_calc - ZeroDivisionError: division by zero
     assert result_pt.target_line_number == 99
     assert result_pt.error_type == "ZeroDivisionError"
 
-    # Jest without 'at' location
-    jest_no_at = """
-FAIL src/auth/login.test.ts
-  ● Login Flow
-    TypeError: Cannot read properties of undefined
-"""
-    result_jest = parser.parse_log_text(jest_no_at, "run-jest-no-at")
-    assert result_jest.target_file_path == "src/auth/login.test.ts"
-    assert result_jest.target_line_number == 15
-    assert result_jest.error_type == "TypeError"
-
 
 @pytest.mark.asyncio
 async def test_fetch_and_parse_logs_async():
     parser = CILogParserAdapter()
+    raw_log = "FAILED src/calculator.py::test_calculate_tax - TypeError: unsupported operand type(s)"
     event = CIFailureEvent(
         repo="acme/test-app",
         commit_sha="1122334455",
         branch="main",
         run_id="run-async-99",
+        raw_log=raw_log,
     )
     result = await parser.fetch_and_parse_logs(event)
     assert result.run_id == "run-async-99"

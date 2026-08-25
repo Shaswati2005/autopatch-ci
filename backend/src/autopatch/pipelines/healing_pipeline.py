@@ -1,16 +1,16 @@
-"""AutoPatch-CI Pipeline: Orchestrates ADK agent or sequential fallback for CI self-healing."""
+"""AutoPatch-CI Pipeline: Orchestrates Google ADK agent and Gemini self-healing repair loop."""
 
 from __future__ import annotations
 
 import uuid
 from typing import Optional, Tuple
 
+from autopatch.adapters.firestore_store import firestore_store
 from autopatch.config.settings import settings
 from autopatch.domain.models import (
     CIFailureEvent,
     DiagnosticTraceStep,
     GeneratedPatch,
-    CodeFilePatch,
     PipelineStage,
     PullRequestInfo,
     VerificationResult,
@@ -25,7 +25,7 @@ from autopatch.domain.ports import (
 
 
 class AutoPatchHealingPipeline:
-    """Orchestrates the AutoPatch-CI repair pipeline via Google ADK Agent or sequential fallback."""
+    """Orchestrates the AutoPatch-CI repair pipeline via Google ADK Agent or sequential LLM loop."""
 
     def __init__(
         self,
@@ -45,14 +45,25 @@ class AutoPatchHealingPipeline:
         self,
         event: CIFailureEvent,
         github_token: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Tuple[bool, Optional[PullRequestInfo]]:
-        """Run the complete self-healing workflow for a CI failure event.
-
-        Attempts ADK agent execution first; falls back to the sequential pipeline
-        if ADK is unavailable. Streams trace steps throughout.
-        """
+        """Run the self-healing workflow for a CI failure event."""
         run_id = event.run_id
         effective_token = github_token or settings.github_token
+
+        # Record initial run in Firestore
+        firestore_store.save_run_metadata(
+            run_id,
+            {
+                "repo": event.repo,
+                "branch": event.branch,
+                "commit_sha": event.commit_sha,
+                "workflow_name": event.workflow_name,
+                "action_source": event.action_source,
+                "status": PipelineStage.INGESTED.value,
+            },
+            user_id=user_id,
+        )
 
         # Stage 1: INGESTED
         await self._log_step(
@@ -61,22 +72,27 @@ class AutoPatchHealingPipeline:
             "1. Event Ingestion",
             f"Received CI failure for {event.repo} @ {event.commit_sha[:7]} (run #{run_id})",
             {"repo": event.repo, "run_id": run_id, "branch": event.branch},
+            user_id=user_id,
         )
 
         if settings.adk_agent_enabled:
-            result = await self._execute_adk(event, run_id, effective_token)
+            result = await self._execute_adk(event, run_id, effective_token, user_id=user_id)
             if result is not None:
                 return result
 
-        # Sequential fallback if ADK not available
-        return await self._execute_sequential(event, run_id, effective_token)
+        # Sequential execution
+        return await self._execute_sequential(event, run_id, effective_token, user_id=user_id)
 
-    # ── ADK Execution ────────────────────────────────────────────────────────
+    # ── ADK Agent Execution ──────────────────────────────────────────────────
 
     async def _execute_adk(
-        self, event: CIFailureEvent, run_id: str, github_token: str
+        self,
+        event: CIFailureEvent,
+        run_id: str,
+        github_token: str,
+        user_id: Optional[str] = None,
     ) -> Optional[Tuple[bool, Optional[PullRequestInfo]]]:
-        """Try to run the repair using the Google ADK agent with real tool calls."""
+        """Run the repair using the Google ADK tools."""
         try:
             from autopatch.agents.adk_agent import (
                 fetch_ci_logs,
@@ -90,33 +106,40 @@ class AutoPatchHealingPipeline:
             return None
 
         adk_agent = get_adk_agent()
-        framework = "Google ADK Agent" if adk_agent else "Direct Tool Execution"
+        framework = "Google ADK Agent" if adk_agent else "Google ADK Tools"
 
         await self._log_step(
-            run_id, PipelineStage.LOGS_PARSED,
+            run_id,
+            PipelineStage.LOGS_PARSED,
             f"2. Starting {framework}",
             f"Initialising autonomous repair pipeline for {event.repo} run #{run_id}",
             {"framework": framework},
+            user_id=user_id,
         )
 
-        # ── Step 1: Fetch real logs ──────────────────────────────────────────
+        # ── Step 1: Fetch live CI logs ───────────────────────────────────────
         log_result = await fetch_ci_logs(event.repo, run_id, github_token)
-        raw_logs = log_result.get("logs", "")
+        raw_logs = log_result.get("logs", "") or event.raw_log or ""
         job_name = log_result.get("job_name", "CI Job")
 
+        # Save authentic logs to Firestore
+        firestore_store.save_ci_logs(run_id, raw_logs, {"job_name": job_name, "repo": event.repo})
+
         await self._log_step(
-            run_id, PipelineStage.LOGS_PARSED,
-            "2. Real CI Logs Fetched",
+            run_id,
+            PipelineStage.LOGS_PARSED,
+            "2. CI Logs Fetched",
             f"Retrieved logs from GitHub Actions job '{job_name}' for run #{run_id}",
             {"logs_preview": raw_logs[:800], "job_name": job_name, "log_length": len(raw_logs)},
+            user_id=user_id,
         )
 
-        # Parse logs for target file using the existing log parser
         from autopatch.adapters.log_parser import CILogParserAdapter
-        parser = CILogParserAdapter(token=github_token)
-        log_analysis = parser.parse_log_text(raw_logs or event.raw_log or "", run_id)
 
-        target_file = log_analysis.target_file_path or "backend/src/autopatch/main.py"
+        parser = CILogParserAdapter(token=github_token)
+        log_analysis = parser.parse_log_text(raw_logs, run_id)
+
+        target_file = log_analysis.target_file_path or "main.py"
         branch = event.branch or "main"
 
         # ── Step 2: Fetch failing file content ───────────────────────────────
@@ -131,12 +154,13 @@ class AutoPatchHealingPipeline:
         verified = False
 
         while attempt <= settings.max_patch_attempts and not verified:
-            # Generate fix
             await self._log_step(
-                run_id, PipelineStage.PATCH_GENERATED,
+                run_id,
+                PipelineStage.PATCH_GENERATED,
                 f"3. Gemini Generating Fix (Attempt #{attempt})",
-                f"Calling Gemini 2.5 Flash to repair `{target_file}` based on failure logs...",
+                f"Invoking Gemini to repair `{target_file}` based on failure logs...",
                 {"attempt": attempt, "target_file": target_file},
+                user_id=user_id,
             )
 
             fix_result = await generate_code_fix(
@@ -149,7 +173,8 @@ class AutoPatchHealingPipeline:
             )
 
             await self._log_step(
-                run_id, PipelineStage.PATCH_GENERATED,
+                run_id,
+                PipelineStage.PATCH_GENERATED,
                 f"3. Fix Generated (Attempt #{attempt})",
                 fix_result.get("rationale", "Fix generated."),
                 {
@@ -159,14 +184,17 @@ class AutoPatchHealingPipeline:
                     "rationale": fix_result.get("rationale", ""),
                     "attempt": attempt,
                 },
+                user_id=user_id,
             )
 
-            # Verify
+            # Verify in Cloud Build sandbox
             await self._log_step(
-                run_id, PipelineStage.VERIFYING,
+                run_id,
+                PipelineStage.VERIFYING,
                 f"4. Cloud Build Verification (Attempt #{attempt})",
-                "Running patch in Google Cloud Build sandbox...",
+                "Running patch in Google Cloud Build / test sandbox...",
                 {"attempt": attempt},
+                user_id=user_id,
             )
 
             verify_result = await verify_with_cloud_build(
@@ -182,7 +210,8 @@ class AutoPatchHealingPipeline:
             if verify_result.get("passed"):
                 verified = True
                 await self._log_step(
-                    run_id, PipelineStage.VERIFIED,
+                    run_id,
+                    PipelineStage.VERIFIED,
                     "4. Verification Passed ✓",
                     f"Cloud Build sandbox: all tests PASSED (build: {verify_result.get('build_id', 'N/A')})",
                     {
@@ -192,11 +221,13 @@ class AutoPatchHealingPipeline:
                         "test_output": verify_result.get("output", ""),
                         "attempt": attempt,
                     },
+                    user_id=user_id,
                 )
             else:
                 previous_feedback = verify_result.get("output", "")
                 await self._log_step(
-                    run_id, PipelineStage.VERIFYING,
+                    run_id,
+                    PipelineStage.VERIFYING,
                     f"4. Verification Failed (Attempt #{attempt})",
                     "Tests failed in sandbox. Feeding output back to Gemini for correction...",
                     {
@@ -204,15 +235,18 @@ class AutoPatchHealingPipeline:
                         "output": previous_feedback[:800],
                         "attempt": attempt,
                     },
+                    user_id=user_id,
                 )
                 attempt += 1
 
         if not verified:
             await self._log_step(
-                run_id, PipelineStage.FAILED,
+                run_id,
+                PipelineStage.FAILED,
                 "Pipeline Escalated",
-                f"Max attempts ({settings.max_patch_attempts}) exhausted. Flagged for human review.",
+                f"Max attempts ({settings.max_patch_attempts}) exhausted. Human review needed.",
                 {"error": "Max retries exhausted"},
+                user_id=user_id,
             )
             return False, None
 
@@ -242,7 +276,8 @@ class AutoPatchHealingPipeline:
                 body_markdown=f"Fix for run #{run_id}",
             )
             await self._log_step(
-                run_id, PipelineStage.PR_CREATED,
+                run_id,
+                PipelineStage.PR_CREATED,
                 "5. Pull Request Opened ✓",
                 f"Opened PR #{pr_info.pr_number} on branch `{branch_name}`",
                 {
@@ -252,31 +287,39 @@ class AutoPatchHealingPipeline:
                     "title": pr_info.title,
                     "repo": event.repo,
                 },
+                user_id=user_id,
             )
             return True, pr_info
         else:
-            error = pr_result.get("error", "Unknown error")
+            error = pr_result.get("error", "PR submission failed")
             await self._log_step(
-                run_id, PipelineStage.FAILED,
+                run_id,
+                PipelineStage.FAILED,
                 "5. PR Creation Failed",
                 f"Could not open PR: {error}",
                 {"error": error},
+                user_id=user_id,
             )
             return False, None
 
-    # ── Sequential Fallback ─────────────────────────────────────────────────
+    # ── Sequential Execution ────────────────────────────────────────────────
 
     async def _execute_sequential(
-        self, event: CIFailureEvent, run_id: str, github_token: str
+        self,
+        event: CIFailureEvent,
+        run_id: str,
+        github_token: str,
+        user_id: Optional[str] = None,
     ) -> Tuple[bool, Optional[PullRequestInfo]]:
-        """Fallback: sequential pipeline using the existing hexagonal adapters."""
-        # Stage 2: LOGS_PARSED
+        """Sequential pipeline execution."""
         log_analysis = await self.log_parser.fetch_and_parse_logs(event)
         await self._log_step(
-            run_id, PipelineStage.LOGS_PARSED,
-            "2. Log Analysis (Sequential Mode)",
+            run_id,
+            PipelineStage.LOGS_PARSED,
+            "2. Log Analysis",
             f"Extracted: {log_analysis.error_summary} in `{log_analysis.target_file_path}`",
             {"error_type": log_analysis.error_type, "target_file": str(log_analysis.target_file_path)},
+            user_id=user_id,
         )
 
         attempt = 1
@@ -295,22 +338,25 @@ class AutoPatchHealingPipeline:
             final_patch = patch
 
             await self._log_step(
-                run_id, PipelineStage.PATCH_GENERATED,
+                run_id,
+                PipelineStage.PATCH_GENERATED,
                 f"3. Patch Generated (Attempt #{attempt})",
-                f"Fix for `{patch.fix_files[0].file_path}` + regression test `{patch.regression_test_file.file_path}`",
+                f"Fix for `{patch.fix_files[0].file_path}` + test `{patch.regression_test_file.file_path}`",
                 {
                     "diff": patch.fix_files[0].patched_content,
                     "target_file": patch.fix_files[0].file_path,
                     "test_file": patch.regression_test_file.file_path,
-                    "test_diff": patch.regression_test_file.patched_content,
                     "rationale": patch.rationale,
                 },
+                user_id=user_id,
             )
 
             await self._log_step(
-                run_id, PipelineStage.VERIFYING,
+                run_id,
+                PipelineStage.VERIFYING,
                 f"4. Verifying (Attempt #{attempt})",
-                "Running patch in sandbox...",
+                "Running patch in Cloud Build sandbox...",
+                user_id=user_id,
             )
 
             verification = await self.verifier.verify_patch(event, patch)
@@ -319,34 +365,41 @@ class AutoPatchHealingPipeline:
             if verification.passed:
                 verified = True
                 await self._log_step(
-                    run_id, PipelineStage.VERIFIED,
+                    run_id,
+                    PipelineStage.VERIFIED,
                     "4. Verification Passed ✓",
                     "All tests passed.",
-                    {"status": "SUCCESS", "test_output": verification.execution_output, "attempt": verification.attempt_number},
+                    {"status": "SUCCESS", "test_output": verification.execution_output},
+                    user_id=user_id,
                 )
             else:
                 attempt += 1
                 previous_feedback = verification.execution_output
                 await self._log_step(
-                    run_id, PipelineStage.VERIFYING,
+                    run_id,
+                    PipelineStage.VERIFYING,
                     f"4. Verification Failed (Attempt #{attempt - 1})",
-                    "Initiating self-correction loop...",
+                    "Retrying patch generation...",
                     {"status": "FAILED", "test_output": verification.execution_output},
+                    user_id=user_id,
                 )
 
         if not verified or not final_patch or not final_verification:
             await self._log_step(
-                run_id, PipelineStage.FAILED,
+                run_id,
+                PipelineStage.FAILED,
                 "Pipeline Escalated",
                 f"Max attempts ({settings.max_patch_attempts}) exhausted.",
                 {"error": "Max retries exhausted"},
+                user_id=user_id,
             )
             return False, None
 
         try:
             pr_info = await self.git_provider.create_pull_request(event, final_patch, final_verification)
             await self._log_step(
-                run_id, PipelineStage.PR_CREATED,
+                run_id,
+                PipelineStage.PR_CREATED,
                 "5. Pull Request Opened ✓",
                 f"PR #{pr_info.pr_number} on `{pr_info.branch_name}`",
                 {
@@ -356,14 +409,17 @@ class AutoPatchHealingPipeline:
                     "title": pr_info.title,
                     "repo": event.repo,
                 },
+                user_id=user_id,
             )
             return True, pr_info
         except Exception as exc:
             await self._log_step(
-                run_id, PipelineStage.FAILED,
+                run_id,
+                PipelineStage.FAILED,
                 "PR Delivery Failed",
                 f"Could not open PR: {exc}",
                 {"error": str(exc)},
+                user_id=user_id,
             )
             return False, None
 
@@ -376,6 +432,7 @@ class AutoPatchHealingPipeline:
         title: str,
         detail: str,
         payload: Optional[dict] = None,
+        user_id: Optional[str] = None,
     ) -> None:
         step = DiagnosticTraceStep(
             step_id=str(uuid.uuid4())[:8],

@@ -4,25 +4,28 @@
 
 :root {
   /* Surfaces from Warp */
-  --bg: #0b0d14;
-  --bg-alt: #11141d;
-  --surface: #161a25;
-  --surface-2: #1e2331;
-  --text: #f1f1f4;
-  --text-muted: #9aa1b3;
-  --text-dim: #5f6580;
-  --border: #232838;
-  --border-strong: #2e3447;
+  --bg:              #0b0d14;
+  --bg-alt:          #11141d;
+  --surface:         #161a25;
+  --surface-2:       #1e2331;
+  --text:            #f1f1f4;
+  --text-muted:      #9aa1b3;
+  --text-dim:        #5f6580;
+  --border:          #232838;
+  --border-strong:   #2e3447;
 
-  /* Accent from Sentry — replaces Warp teal */
-  --accent: #7553f6;
-  --accent-hover: #8967ff;
-  --accent-soft: #584774;
+  /* Accent from Sentry — replaces Warp's teal */
+  --accent:          #7553f6;   /* Sentry-adjacent lilac */
+  --accent-hover:    #8967ff;
+  --accent-soft:     #584774;   /* used for empty-state illustrations */
 
   /* State */
-  --warning: #ff7a59;
-  --danger: #f6827d;
-  --success: #5ee78a;
+  --warning:         #ff7a59;   /* Warp coral retained */
+  --danger:          #f6827d;   /* Sentry pink-coral for alerts */
+  --success:         #5ee78a;   /* Warp green retained */
+
+  /* Elevation */
+  --shadow-modal:    0 24px 48px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -32,110 +35,160 @@
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Roobert', 'Inter', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' on, 'lnum' on;
 }
 
-/* Headlines / Display: Rubik 600 at 24px+ only */
+/* Typography Rules */
 .font-headline {
   font-family: 'Rubik', sans-serif;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-/* Code & Numerals: JetBrains Mono with tabular numbers */
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
 }
 
-/* Warp Card Pattern: --surface fill, 1px --border, radius 10 */
-.warp-card {
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Card / Block - Warp pattern preserved */
+.warp-card,
+.card-warp {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
 }
 
-.warp-card-hover {
-  transition: border-color 0.15s ease;
-}
-.warp-card-hover:hover {
-  border-color: var(--border-strong);
+.warp-card-alt {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
-/* Buttons (Warp x Sentry Spec) */
+/* Button 1: Primary - Accent fill, dark text */
+.btn-primary,
 .btn-warp-primary {
-  background-color: var(--accent);
-  color: #0b0d14;
-  font-weight: 500;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
-  line-height: 1.2;
-  transition: background-color 0.15s ease, transform 0.1s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: none;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 8px;
+  color: #0b0d14;
+  background-color: var(--accent);
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
+
+.btn-primary:hover,
 .btn-warp-primary:hover {
   background-color: var(--accent-hover);
 }
+
+.btn-primary:active,
+.btn-warp-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled,
 .btn-warp-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button 2: Secondary - Surface-2 fill, text color, border-strong outline */
+.btn-secondary,
+.btn-warp-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 8px;
+  color: var(--text);
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:hover,
+.btn-warp-secondary:hover {
+  background-color: #262c3e;
+  border-color: var(--text-dim);
+}
+
+.btn-secondary:active,
+.btn-warp-secondary:active {
+  transform: translateY(1px);
+}
+
+.btn-secondary:disabled,
+.btn-warp-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-warp-secondary {
-  background-color: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border-strong);
-  font-weight: 500;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
-  line-height: 1.2;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+/* Button 3: Destructive - Danger fill, dark text */
+.btn-destructive,
+.btn-danger,
+.btn-warp-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-}
-.btn-warp-secondary:hover {
-  background-color: #262c3e;
-  border-color: #3f4760;
-}
-
-.btn-warp-danger {
-  background-color: var(--danger);
-  color: #0b0d14;
-  font-weight: 500;
-  border-radius: 8px;
+  gap: 8px;
   padding: 8px 14px;
   font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  color: #0b0d14;
+  background-color: var(--danger);
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: opacity 0.15s ease;
 }
 
-/* Inputs */
-.warp-input {
+.btn-destructive:hover,
+.btn-danger:hover,
+.btn-warp-danger:hover {
+  opacity: 0.9;
+}
+
+/* Inputs - Warp geometry */
+.warp-input,
+.input-warp {
   background-color: var(--bg-alt);
   border: 1px solid var(--border-strong);
   color: var(--text);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.warp-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(117, 83, 246, 0.4);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-/* Sentry-Style Left-Border Alert Row Pattern */
+.warp-input:focus,
+.input-warp:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Alert / Issue Rows - Sentry's left-border pattern */
+.alert-row-danger,
 .sentry-alert-row-danger {
   background-color: var(--surface);
   border-left: 4px solid var(--danger);
@@ -145,6 +198,7 @@ body {
   border-radius: 8px;
 }
 
+.alert-row-warning,
 .sentry-alert-row-warning {
   background-color: var(--surface);
   border-left: 4px solid var(--warning);
@@ -154,6 +208,7 @@ body {
   border-radius: 8px;
 }
 
+.alert-row-success,
 .sentry-alert-row-success {
   background-color: var(--surface);
   border-left: 4px solid var(--success);
@@ -163,9 +218,18 @@ body {
   border-radius: 8px;
 }
 
-/* Tabular Numerals globally */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+/* Modal depth */
+.modal-warp {
+  background-color: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+}
+
+/* Focus Visibility */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 }
 
 /* Scrollbar */

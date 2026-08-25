@@ -1,7 +1,7 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  CalendarDays, CheckCircle2, XCircle, Clock, RefreshCw,
+  CheckCircle2, XCircle, Clock, RefreshCw,
   ChevronLeft, ChevronRight, Zap, ExternalLink, GitBranch,
   Activity, AlertTriangle
 } from 'lucide-react';
@@ -20,11 +20,6 @@ interface CIRun {
   workflow_name?: string;
 }
 
-interface CalendarDay {
-  date: string;           // YYYY-MM-DD
-  runs: CIRun[];
-}
-
 interface CICalendarViewProps {
   onTriggerAutopatch?: (repo: string, runId: string, branch: string) => void;
   triggering?: boolean;
@@ -38,19 +33,10 @@ const API_BASE =
 function conclusionColor(conclusion: string): string {
   switch (conclusion) {
     case 'success': return '#5ee78a';
-    case 'failure': return '#ff7a59';
+    case 'failure': return '#f6827d';
     case 'cancelled': return '#9aa1b3';
     case 'skipped': return '#5f6580';
-    default: return '#f59e0b'; // in_progress / queued
-  }
-}
-
-function conclusionBg(conclusion: string): string {
-  switch (conclusion) {
-    case 'success': return 'bg-[#5ee78a]/10 border-[#5ee78a]/30';
-    case 'failure': return 'bg-[#ff7a59]/10 border-[#ff7a59]/30';
-    case 'cancelled': return 'bg-[#9aa1b3]/10 border-[#9aa1b3]/30';
-    default: return 'bg-[#f59e0b]/10 border-[#f59e0b]/30';
+    default: return '#ff7a59';
   }
 }
 
@@ -58,8 +44,8 @@ function ConclusionIcon({ conclusion, size = 14 }: { conclusion: string; size?: 
   const s = { width: size, height: size };
   switch (conclusion) {
     case 'success': return <CheckCircle2 style={s} color="#5ee78a" />;
-    case 'failure': return <XCircle style={s} color="#ff7a59" />;
-    default: return <Clock style={s} color="#f59e0b" />;
+    case 'failure': return <XCircle style={s} color="#f6827d" />;
+    default: return <Clock style={s} color="#ff7a59" />;
   }
 }
 
@@ -90,9 +76,8 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
   const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Load repos
   useEffect(() => {
     authFetch(`${API_BASE}/api/github/repos`)
       .then(r => r.json())
@@ -102,7 +87,7 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
         if (list.length > 0 && !selectedRepo) setSelectedRepo(list[0].name);
       })
       .catch(() => {});
-  }, [authFetch]);
+  }, [authFetch, selectedRepo]);
 
   const loadCalendar = useCallback(async () => {
     if (!selectedRepo) return;
@@ -116,7 +101,6 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
       const data = await res.json();
       const runs: CIRun[] = data.workflow_runs || [];
 
-      // Group by date
       const grouped: Record<string, CIRun[]> = {};
       for (const run of runs) {
         const day = (run.created_at || '').slice(0, 10);
@@ -126,7 +110,6 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
       }
       setCalendarData(grouped);
 
-      // Auto-expand today or most recent day
       const sortedDays = Object.keys(grouped).sort().reverse();
       if (sortedDays.length > 0) setExpandedDay(sortedDays[0]);
     } catch { /* silent */ } finally {
@@ -136,10 +119,9 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
 
   useEffect(() => { loadCalendar(); }, [loadCalendar]);
 
-  // Build week days for the week navigation header
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - d.getDay() + i + weekOffset * 7); // start from Sunday
+    d.setDate(d.getDate() - d.getDay() + i + weekOffset * 7);
     return d.toISOString().slice(0, 10);
   });
 
@@ -149,27 +131,27 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
     <div className="space-y-6 animate-fade-in-up">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232838]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[#7553f6]">CI History</span>
-            <span className="text-[#5f6580] font-mono text-xs">/</span>
-            <span className="font-mono text-xs text-[#9aa1b3]">Calendar</span>
+          <div className="flex items-center gap-2 text-[12px] font-mono">
+            <span className="text-accent">CI History</span>
+            <span className="text-text-dim">/</span>
+            <span className="text-text-muted">Calendar</span>
           </div>
-          <h1 className="font-headline text-2xl sm:text-3xl text-[#f1f1f4] mt-1">
+          <h1 className="font-headline text-[24px] sm:text-[26px] text-text font-semibold mt-1 tracking-tight">
             CI Run Timeline
           </h1>
-          <p className="text-xs text-[#5f6580] font-mono mt-1">
+          <p className="text-[12px] text-text-dim font-mono mt-0.5">
             All GitHub Actions runs grouped by day — click a run to trigger AutoPatch
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Repo selector */}
           <select
             value={selectedRepo}
             onChange={e => setSelectedRepo(e.target.value)}
-            className="bg-[#11141d] border border-[#232838] text-[#f1f1f4] text-xs font-mono px-3 py-2 rounded-lg outline-none focus:border-[#7553f6] transition-colors"
+            className="input-warp text-[12px] font-mono py-1.5 px-3"
           >
             {repos.map(r => (
               <option key={r.id} value={r.name}>{r.name}</option>
@@ -180,7 +162,7 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
           <button
             onClick={loadCalendar}
             disabled={loading}
-            className="btn-warp-secondary p-2 text-xs"
+            className="btn-secondary p-2 text-[12px]"
             title="Refresh"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -189,15 +171,15 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
       </div>
 
       {/* Week nav bar */}
-      <div className="warp-card p-3 flex items-center gap-2 overflow-x-auto">
+      <div className="warp-card p-3 flex items-center gap-2 overflow-x-auto bg-surface border border-border">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
-          className="p-1.5 rounded hover:bg-[#1e2331] text-[#9aa1b3] hover:text-[#f1f1f4] transition-colors flex-shrink-0"
+          className="p-1.5 rounded-[6px] hover:bg-surface-2 text-text-muted hover:text-text transition-colors flex-shrink-0"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        <div className="flex gap-1 flex-1 justify-around">
+        <div className="flex gap-1.5 flex-1 justify-around">
           {weekDays.map(day => {
             const hasFail = calendarData[day]?.some(r => r.conclusion === 'failure');
             const hasSuccess = calendarData[day]?.some(r => r.conclusion === 'success');
@@ -211,29 +193,29 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
               <button
                 key={day}
                 onClick={() => setExpandedDay(expandedDay === day ? null : day)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all min-w-[44px] ${
+                className={`flex flex-col items-center gap-1 p-2 rounded-[8px] transition-colors min-w-[48px] ${
                   isSelected
-                    ? 'bg-[#7553f6]/20 border border-[#7553f6]/50'
+                    ? 'bg-surface-2 border border-accent text-text'
                     : isToday
-                    ? 'bg-[#1e2331] border border-[#2e3447]'
-                    : 'hover:bg-[#161a25]'
+                    ? 'bg-bg-alt border border-border-strong text-accent font-semibold'
+                    : 'hover:bg-surface-2/50 text-text-muted'
                 }`}
               >
-                <span className="text-[9px] font-mono text-[#5f6580] uppercase">{dayName}</span>
-                <span className={`text-sm font-bold font-mono ${isToday ? 'text-[#7553f6]' : 'text-[#f1f1f4]'}`}>
+                <span className="text-[10px] font-mono text-text-dim uppercase font-semibold">{dayName}</span>
+                <span className={`text-[13px] font-bold font-mono tabular-nums ${isToday ? 'text-accent' : 'text-text'}`}>
                   {dayNum}
                 </span>
                 {count > 0 ? (
-                  <div className="flex gap-0.5">
-                    {hasFail && <span className="w-1.5 h-1.5 rounded-full bg-[#ff7a59]" />}
-                    {hasSuccess && <span className="w-1.5 h-1.5 rounded-full bg-[#5ee78a]" />}
-                    {!hasFail && !hasSuccess && <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />}
+                  <div className="flex gap-1">
+                    {hasFail && <span className="w-1.5 h-1.5 rounded-full bg-danger" />}
+                    {hasSuccess && <span className="w-1.5 h-1.5 rounded-full bg-success" />}
+                    {!hasFail && !hasSuccess && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
                   </div>
                 ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1e2331]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-border" />
                 )}
                 {count > 0 && (
-                  <span className="text-[9px] font-mono text-[#5f6580]">{count}</span>
+                  <span className="text-[10px] font-mono text-text-dim tabular-nums">{count}</span>
                 )}
               </button>
             );
@@ -243,38 +225,40 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
         <button
           onClick={() => setWeekOffset(w => w + 1)}
           disabled={weekOffset >= 0}
-          className="p-1.5 rounded hover:bg-[#1e2331] text-[#9aa1b3] hover:text-[#f1f1f4] transition-colors disabled:opacity-30 flex-shrink-0"
+          className="p-1.5 rounded-[6px] hover:bg-surface-2 text-text-muted hover:text-text transition-colors disabled:opacity-30 flex-shrink-0"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
 
         <button
           onClick={() => setWeekOffset(0)}
-          className="px-2 py-1 text-[10px] font-mono text-[#7553f6] hover:text-[#8967ff] border border-[#2e3447] rounded transition-colors flex-shrink-0"
+          className="btn-secondary px-2.5 py-1 text-[11px] font-mono text-accent flex-shrink-0"
         >
           Today
         </button>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-[10px] font-mono text-[#5f6580]">
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#5ee78a]" />Success</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#ff7a59]" />Failure</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#f59e0b]" />In Progress</div>
-        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#9aa1b3]" />Cancelled</div>
+      <div className="flex items-center gap-5 text-[11px] font-mono text-text-muted">
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-success" />Success</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-danger" />Failure</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning" />In Progress</div>
+        <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-text-dim" />Cancelled</div>
       </div>
 
       {/* Timeline: grouped by day */}
       {loading && sortedDays.length === 0 ? (
-        <div className="py-20 text-center space-y-3">
-          <div className="w-6 h-6 border-2 border-[#7553f6] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-mono text-[#9aa1b3]">Fetching CI runs from GitHub Actions...</p>
+        <div className="py-16 text-center space-y-3">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-[12px] font-mono text-text-muted">Fetching CI runs from GitHub Actions...</p>
         </div>
       ) : sortedDays.length === 0 ? (
-        <div className="warp-card py-20 text-center space-y-3">
-          <Activity className="w-8 h-8 text-[#584774] mx-auto" />
-          <p className="font-headline text-base text-[#f1f1f4]">No CI runs found</p>
-          <p className="text-xs text-[#9aa1b3] max-w-sm mx-auto">
+        <div className="warp-card py-16 text-center space-y-2.5 bg-surface border border-border">
+          <div className="w-10 h-10 rounded-[8px] bg-accent-soft/20 border border-border flex items-center justify-center mx-auto text-accent-soft">
+            <Activity className="w-5 h-5" />
+          </div>
+          <p className="font-headline text-[17px] text-text font-semibold">No CI runs found</p>
+          <p className="text-[12px] text-text-muted max-w-sm mx-auto font-sans">
             {selectedRepo ? `No GitHub Actions runs in ${selectedRepo}` : 'Select a repository to view CI history'}
           </p>
         </div>
@@ -288,38 +272,38 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
 
             return (
               <div key={day} className="space-y-2">
-                {/* Day header — clickable to expand */}
+                {/* Day header */}
                 <button
                   onClick={() => setExpandedDay(isOpen ? null : day)}
-                  className="w-full flex items-center gap-3 text-left group"
+                  className="w-full flex items-center gap-3 text-left p-2 rounded-[8px] hover:bg-surface-2/40 transition-colors"
                 >
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="font-mono text-sm font-bold text-[#f1f1f4] group-hover:text-[#7553f6] transition-colors">
+                    <span className="font-mono text-[13px] font-bold text-text">
                       {formatDayHeader(day)}
                     </span>
-                    <span className="text-[10px] font-mono text-[#5f6580]">
+                    <span className="text-[11px] font-mono text-text-dim">
                       {new Date(day + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {failCount > 0 && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-[#ff7a59] bg-[#ff7a59]/10 px-1.5 py-0.5 rounded border border-[#ff7a59]/20">
+                      <span className="flex items-center gap-1 text-[11px] font-mono text-danger bg-danger/10 px-2 py-0.5 rounded border border-danger/20 tabular-nums">
                         <XCircle className="w-2.5 h-2.5" />{failCount} failed
                       </span>
                     )}
                     {successCount > 0 && (
-                      <span className="flex items-center gap-1 text-[10px] font-mono text-[#5ee78a] bg-[#5ee78a]/10 px-1.5 py-0.5 rounded border border-[#5ee78a]/20">
+                      <span className="flex items-center gap-1 text-[11px] font-mono text-success bg-success/10 px-2 py-0.5 rounded border border-success/20 tabular-nums">
                         <CheckCircle2 className="w-2.5 h-2.5" />{successCount} passed
                       </span>
                     )}
-                    <span className="text-[10px] font-mono text-[#5f6580]">{runs.length} total</span>
-                    <ChevronRight className={`w-3.5 h-3.5 text-[#5f6580] transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                    <span className="text-[11px] font-mono text-text-dim tabular-nums">{runs.length} total</span>
+                    <ChevronRight className={`w-3.5 h-3.5 text-text-dim transition-transform ${isOpen ? 'rotate-90 text-accent' : ''}`} />
                   </div>
                 </button>
 
                 {/* Horizontal colored bar */}
-                <div className="flex gap-0.5 h-1 rounded-full overflow-hidden">
+                <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden bg-bg-alt p-[1px]">
                   {runs.map(run => (
                     <div
                       key={run.id}
@@ -332,7 +316,7 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
 
                 {/* Expanded runs list */}
                 {isOpen && (
-                  <div className="space-y-2 pl-4 border-l-2 border-[#2e3447] ml-1">
+                  <div className="space-y-2 pl-3 border-l-2 border-border ml-1">
                     {runs.map(run => {
                       const isRunExpanded = expandedRun === run.id;
                       const isFailing = run.conclusion === 'failure';
@@ -340,7 +324,9 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
                       return (
                         <div
                           key={run.id}
-                          className={`warp-card p-3 border transition-all ${conclusionBg(run.conclusion)}`}
+                          className={`warp-card p-3.5 border transition-colors ${
+                            isFailing ? 'alert-row-danger' : 'bg-surface border-border'
+                          }`}
                         >
                           <div
                             className="flex items-center justify-between gap-3 cursor-pointer"
@@ -350,30 +336,30 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
                               <ConclusionIcon conclusion={run.conclusion} />
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-mono font-bold text-[#f1f1f4] truncate max-w-[200px]">
+                                  <span className="text-[12px] font-mono font-bold text-text truncate max-w-[200px]">
                                     {run.name || run.workflow_name}
                                   </span>
-                                  <span className="text-[10px] font-mono text-[#5f6580] flex-shrink-0">
+                                  <span className="text-[10px] font-mono text-text-dim flex-shrink-0">
                                     #{run.id.slice(-6)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  <GitBranch className="w-2.5 h-2.5 text-[#5f6580] flex-shrink-0" />
-                                  <span className="text-[10px] font-mono text-[#5f6580]">{run.branch}</span>
+                                  <GitBranch className="w-2.5 h-2.5 text-text-dim flex-shrink-0" />
+                                  <span className="text-[10px] font-mono text-text-dim">{run.branch}</span>
                                   {run.commit_sha && (
-                                    <span className="text-[10px] font-mono text-[#5f6580] bg-[#11141d] px-1 rounded">
+                                    <span className="text-[10px] font-mono text-text-dim bg-bg-alt px-1.5 py-0.2 rounded">
                                       {run.commit_sha}
                                     </span>
                                   )}
-                                  <span className="text-[10px] font-mono text-[#5f6580]">{formatTime(run.created_at)}</span>
+                                  <span className="text-[10px] font-mono text-text-dim">{formatTime(run.created_at)}</span>
                                 </div>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <span
-                                className="text-[10px] font-mono px-2 py-0.5 rounded font-bold"
-                                style={{ color: conclusionColor(run.conclusion), background: `${conclusionColor(run.conclusion)}15`, border: `1px solid ${conclusionColor(run.conclusion)}30` }}
+                                className="text-[10px] font-mono px-2 py-0.2 rounded font-bold"
+                                style={{ color: conclusionColor(run.conclusion), background: `${conclusionColor(run.conclusion)}15` }}
                               >
                                 {run.conclusion === 'in_progress' ? 'running' : run.conclusion}
                               </span>
@@ -382,10 +368,10 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
                                 <button
                                   onClick={e => { e.stopPropagation(); onTriggerAutopatch(selectedRepo, run.id, run.branch); }}
                                   disabled={triggering}
-                                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono font-bold bg-[#7553f6]/20 hover:bg-[#7553f6]/40 text-[#7553f6] border border-[#7553f6]/30 transition-colors disabled:opacity-50"
+                                  className="btn-primary py-1 px-2 text-[10px] font-mono font-bold"
                                   title="Trigger AutoPatch AI repair on this failing run"
                                 >
-                                  <Zap className="w-2.5 h-2.5" />
+                                  <Zap className="w-2.5 h-2.5 text-bg" />
                                   {triggering ? 'Fixing...' : 'AutoPatch'}
                                 </button>
                               )}
@@ -396,7 +382,7 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
                                   target="_blank"
                                   rel="noreferrer"
                                   onClick={e => e.stopPropagation()}
-                                  className="p-1 rounded hover:bg-[#1e2331] text-[#5f6580] hover:text-[#f1f1f4] transition-colors"
+                                  className="p-1 rounded hover:bg-surface-2 text-text-dim hover:text-text transition-colors"
                                   title="View on GitHub"
                                 >
                                   <ExternalLink className="w-3 h-3" />
@@ -407,25 +393,25 @@ export const CICalendarView: React.FC<CICalendarViewProps> = ({
 
                           {/* Expanded detail */}
                           {isRunExpanded && (
-                            <div className="mt-3 pt-3 border-t border-[#2e3447] space-y-2">
+                            <div className="mt-3 pt-3 border-t border-border space-y-2">
                               {run.commit_message && (
-                                <p className="text-[11px] font-mono text-[#9aa1b3] break-words">
+                                <p className="text-[11px] font-mono text-text-muted break-words">
                                   💬 {run.commit_message.split('\n')[0]}
                                 </p>
                               )}
                               {run.actor && (
-                                <p className="text-[10px] font-mono text-[#5f6580]">
-                                  👤 Triggered by <span className="text-[#9aa1b3]">{run.actor}</span>
+                                <p className="text-[10px] font-mono text-text-dim">
+                                  Triggered by <span className="text-text">{run.actor}</span>
                                 </p>
                               )}
                               {isFailing && (
-                                <div className="p-2 rounded-lg bg-[#ff7a59]/5 border border-[#ff7a59]/20">
+                                <div className="p-3 rounded-[8px] bg-danger/5 border border-danger/20">
                                   <div className="flex items-center gap-1.5 mb-1">
-                                    <AlertTriangle className="w-3 h-3 text-[#ff7a59]" />
-                                    <span className="text-[10px] font-mono font-bold text-[#ff7a59]">CI FAILURE — AutoPatch Available</span>
+                                    <AlertTriangle className="w-3.5 h-3.5 text-danger" />
+                                    <span className="text-[11px] font-mono font-bold text-danger">CI FAILURE — AutoPatch Ready</span>
                                   </div>
-                                  <p className="text-[10px] font-mono text-[#9aa1b3]">
-                                    Click <strong>AutoPatch</strong> to trigger the Google ADK agent: it will fetch real logs, generate a Gemini fix, verify via Cloud Build, and submit a PR automatically.
+                                  <p className="text-[11px] font-mono text-text-muted">
+                                    Trigger AutoPatch to synthesize a fix and submit a verified Pull Request.
                                   </p>
                                 </div>
                               )}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar, DashboardTab } from './components/Sidebar';
 import { LandingPage } from './views/LandingPage';
@@ -149,12 +149,7 @@ function AppContent() {
     };
   }, [selectedRun, API_BASE, isAuthenticated, token, fetchTraces]);
 
-  // ── Trigger handlers ────────────────────────────────────────────────────
-
-  /**
-   * Trigger AutoPatch on a specific real GitHub Actions run ID.
-   * Used by RepositoriesView "Fix This Run" and CICalendarView "AutoPatch" buttons.
-   */
+  // Trigger Handlers
   const handleTriggerOnRealRun = async (repo: string, runId: string, branch: string) => {
     if (!isAuthenticated) { loginWithGitHub(); return; }
     setTriggering(true);
@@ -183,20 +178,15 @@ function AppContent() {
     }
   };
 
-  /**
-   * Trigger a general demo/manual run on a repo+branch.
-   * Optionally pass a specific runId to target a known failing run.
-   */
   const handleTriggerCheck = async (
-    repoName = 'Shaswati2005/autopatch-ci',
+    repoName = 'acme/payment-service',
     branch = 'main',
-    workflowName = 'CI / Pytest Suite',
+    workflowName = 'CI Pipeline',
     runId?: string,
   ) => {
     if (!isAuthenticated) { loginWithGitHub(); return; }
 
-    // If a specific real runId is provided, use the real-run endpoint
-    if (runId) {
+    if (runId && repoName) {
       return handleTriggerOnRealRun(repoName, runId, branch);
     }
 
@@ -220,16 +210,16 @@ function AppContent() {
         setCurrentTab('incidents');
       }
     } catch (err) {
-      console.error('Trigger demo failed', err);
+      console.error('Trigger check failed', err);
     } finally {
       setTriggering(false);
     }
   };
 
-  // ── Auth callback ───────────────────────────────────────────────────────
+  // ── Auth Callback ────────────────────────────────────────────────────────
   if (isAuthCallback) {
     return (
-      <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
+      <div className="min-h-screen bg-bg text-text relative flex items-center justify-center p-6">
         <AuthCallbackView
           onAuthSuccess={() => { setIsAuthCallback(false); setCurrentTab('overview'); }}
           onAuthError={() => { setIsAuthCallback(false); setCurrentTab('overview'); }}
@@ -238,23 +228,28 @@ function AppContent() {
     );
   }
 
-  // ── Landing Page ────────────────────────────────────────────────────────
+  // ── Landing Page (Marketing layout max 1280, 24px gutter) ─────────────────
   if (currentTab === 'landing') {
     return (
-      <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4]">
-        <header className="border-b border-[#232838] bg-[#0b0d14]/90 backdrop-blur-md sticky top-0 z-50">
-          <div className="max-w-[1280px] mx-auto px-6 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2 font-mono text-xs font-bold text-[#f1f1f4]">
-              <span className="w-2.5 h-2.5 rounded bg-[#7553f6]" />
-              AutoPatch-CI
+      <div className="min-h-screen bg-bg text-text relative">
+        <header className="border-b border-border bg-bg/90 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-[1280px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 font-mono text-[13px] font-bold text-text">
+              <div className="w-7 h-7 rounded-[8px] bg-surface-2 border border-border-strong flex items-center justify-center text-accent">
+                <Terminal className="w-4 h-4" />
+              </div>
+              <span className="tracking-tight text-[15px] font-semibold">
+                AutoPatch<span className="text-accent">-CI</span>
+              </span>
             </div>
             <div className="flex items-center gap-3">
               {isAuthenticated ? (
-                <button onClick={() => setCurrentTab('overview')} className="btn-warp-primary text-xs">
+                <button onClick={() => setCurrentTab('overview')} className="btn-primary text-[13px]">
                   Launch Console
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               ) : (
-                <button onClick={loginWithGitHub} className="btn-warp-primary text-xs">
+                <button onClick={loginWithGitHub} className="btn-primary text-[13px]">
                   <Github className="w-3.5 h-3.5" />
                   Sign in with GitHub
                 </button>
@@ -273,24 +268,24 @@ function AppContent() {
   // ── Auth Guard ──────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4] flex items-center justify-center p-6">
-        <div className="warp-card max-w-md w-full p-8 text-center space-y-6 border border-[#232838] bg-[#161a25]">
-          <div className="w-12 h-12 rounded-xl bg-[#1e2331] border border-[#2e3447] flex items-center justify-center mx-auto text-[#7553f6]">
-            <Lock className="w-6 h-6" />
+      <div className="min-h-screen bg-bg text-text flex items-center justify-center p-6">
+        <div className="warp-card max-w-md w-full p-8 text-center space-y-5 bg-surface border border-border">
+          <div className="w-12 h-12 rounded-[10px] bg-surface-2 border border-border-strong flex items-center justify-center mx-auto text-accent">
+            <Lock className="w-5 h-5" />
           </div>
-          <div className="space-y-2">
-            <h2 className="font-headline text-2xl text-[#f1f1f4]">Authentication Required</h2>
-            <p className="text-xs text-[#9aa1b3] font-mono leading-relaxed">
-              AutoPatch-CI is protected by GitHub OAuth. Sign in to access your repositories and diagnostic traces.
+          <div className="space-y-1.5">
+            <h2 className="font-headline text-[24px] text-text font-semibold tracking-tight">Authentication Required</h2>
+            <p className="text-[13px] text-text-muted font-sans leading-relaxed">
+              AutoPatch-CI requires GitHub OAuth. Sign in to view and heal your CI/CD pipelines.
             </p>
           </div>
-          <div className="space-y-3 pt-2">
-            <button onClick={loginWithGitHub} className="w-full btn-warp-primary py-2.5 text-xs font-medium flex items-center justify-center gap-2">
-              <Github className="w-4 h-4 text-[#0b0d14]" />
+          <div className="space-y-2.5 pt-2">
+            <button onClick={loginWithGitHub} className="w-full btn-primary py-2.5 text-[13px] font-medium flex items-center justify-center gap-2">
+              <Github className="w-4 h-4" />
               Sign in with GitHub
-              <ArrowRight className="w-4 h-4 text-[#0b0d14]" />
+              <ArrowRight className="w-4 h-4" />
             </button>
-            <button onClick={() => setCurrentTab('landing')} className="w-full btn-warp-secondary py-2 text-xs font-mono">
+            <button onClick={() => setCurrentTab('landing')} className="w-full btn-secondary py-2 text-[12px] font-mono">
               Return to Landing Page
             </button>
           </div>
@@ -299,9 +294,9 @@ function AppContent() {
     );
   }
 
-  // ── Main App Shell ──────────────────────────────────────────────────────
+  // ── Main App Shell (Full-width, 240px sidebar, fluid main) ────────────────
   return (
-    <div className="min-h-screen bg-[#0b0d14] text-[#f1f1f4] flex">
+    <div className="min-h-screen bg-bg text-text flex relative">
       <Sidebar
         currentTab={currentTab}
         onTabChange={(tab) => setCurrentTab(tab)}
@@ -310,7 +305,7 @@ function AppContent() {
         onTriggerRun={(repo, branch, workflow) => handleTriggerCheck(repo, branch, workflow)}
       />
 
-      <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-6 lg:p-8 overflow-y-auto bg-bg">
         {currentTab === 'overview' && (
           <DashboardOverview
             runs={runs}

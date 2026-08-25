@@ -3,19 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { 
   CheckCircle2, 
   Clock, 
-  GitBranch, 
   GitPullRequest, 
   ShieldCheck, 
   Zap, 
-  AlertTriangle, 
-  ArrowRight,
-  Activity,
-  Terminal,
   ChevronRight,
   Radio,
-  Flame,
   Bug,
-  Sparkles
+  AlertTriangle
 } from 'lucide-react';
 
 interface DashboardOverviewProps {
@@ -30,10 +24,8 @@ interface DashboardOverviewProps {
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   runs,
-  selectedRun,
   onSelectRun,
   onNavigateToIncidents,
-  onNavigateToRepos,
   onTriggerExistingCI,
   triggering,
 }) => {
@@ -46,10 +38,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const avgMttr = totalRuns > 0 ? '12.4s' : '--';
   const protectedReposCount = user?.publicRepos || (user ? 1 : 0);
 
+  const API_BASE =
+    (typeof import.meta !== 'undefined' && import.meta.env &&
+      (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL)) ||
+    'http://localhost:8000';
+
   useEffect(() => {
     const fetchRadar = async () => {
       try {
-        const res = await authFetch('http://localhost:8000/api/health/radar');
+        const res = await authFetch(`${API_BASE}/api/health/radar`);
         if (res.ok) {
           const data = await res.json();
           setRadarData(data);
@@ -57,22 +54,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       } catch { /* silent */ }
     };
     fetchRadar();
-  }, [authFetch]);
+  }, [authFetch, API_BASE]);
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#232838]">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-[#7553f6] font-medium">
-              {user?.org || 'AutoPatch-CI DevOps Core'}
+          <div className="flex items-center gap-2 text-[12px] font-mono">
+            <span className="text-accent font-medium">
+              {user?.org || 'AutoPatch-CI'}
             </span>
-            <span className="text-[#5f6580] font-mono text-xs">/</span>
-            <span className="font-mono text-xs text-[#9aa1b3]">Incident Overview</span>
+            <span className="text-text-dim">/</span>
+            <span className="text-text-muted">Incident Overview</span>
           </div>
-          <h1 className="font-headline text-2xl sm:text-3xl text-[#f1f1f4] mt-1">
+          <h1 className="font-headline text-[24px] sm:text-[26px] text-text font-semibold mt-1 tracking-tight">
             Developer Health & CI Repairs
           </h1>
         </div>
@@ -81,133 +78,133 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <button
             onClick={onTriggerExistingCI}
             disabled={triggering}
-            className="btn-warp-primary px-4 py-2 text-xs"
+            className="btn-primary text-[13px]"
           >
-            <Zap className="w-3.5 h-3.5 text-[#0b0d14]" />
+            <Zap className="w-3.5 h-3.5 text-bg" />
             {triggering ? 'Healing Pipeline Running...' : 'Run CI Self-Healing Check'}
           </button>
         </div>
       </div>
 
-      {/* 100% Real Dynamically Computed KPI Metrics Cards */}
+      {/* KPI Metrics Cards: Warp surface pattern */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Metric 1: Real Total Healed Runs */}
+        {/* Metric 1: Total Healed Runs */}
         <div className="warp-card p-4 space-y-1">
-          <div className="flex items-center justify-between text-[#9aa1b3]">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Total Healed PRs</span>
-            <GitPullRequest className="w-3.5 h-3.5 text-[#7553f6]" />
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-text-dim">Total Healed PRs</span>
+            <GitPullRequest className="w-4 h-4 text-accent" />
           </div>
           <div className="flex items-baseline gap-2 pt-1">
-            <span className="font-mono font-bold text-2xl text-[#f1f1f4] tabular-nums">
+            <span className="font-mono font-bold text-[26px] text-text tabular-nums">
               {healedCount}
             </span>
-            <span className="text-xs text-[#5ee78a] font-mono">
-              {totalRuns > 0 ? `${totalRuns} total runs` : 'No runs yet'}
+            <span className="text-[12px] text-success font-mono font-medium">
+              {totalRuns > 0 ? `${totalRuns} total` : '0 runs'}
             </span>
           </div>
-          <p className="text-[10px] text-[#5f6580] font-mono">Recorded in database</p>
+          <p className="text-[11px] text-text-dim font-mono">Recorded in Firestore</p>
         </div>
 
-        {/* Metric 2: Real Success Rate */}
+        {/* Metric 2: Success Rate */}
         <div className="warp-card p-4 space-y-1">
-          <div className="flex items-center justify-between text-[#9aa1b3]">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Repair Success Rate</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#5ee78a]" />
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-text-dim">Repair Success Rate</span>
+            <CheckCircle2 className="w-4 h-4 text-success" />
           </div>
           <div className="flex items-baseline gap-2 pt-1">
-            <span className="font-mono font-bold text-2xl text-[#f1f1f4] tabular-nums">
+            <span className="font-mono font-bold text-[26px] text-text tabular-nums">
               {successRate}
             </span>
-            <span className="text-xs text-[#7553f6] font-mono">live</span>
+            <span className="text-[12px] text-accent font-mono font-medium">live</span>
           </div>
-          <p className="text-[10px] text-[#5f6580] font-mono">Sandbox verified</p>
+          <p className="text-[11px] text-text-dim font-mono">Sandbox verified</p>
         </div>
 
-        {/* Metric 3: Real MTTR */}
+        {/* Metric 3: MTTR */}
         <div className="warp-card p-4 space-y-1">
-          <div className="flex items-center justify-between text-[#9aa1b3]">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Mean Time to Repair</span>
-            <Clock className="w-3.5 h-3.5 text-[#ff7a59]" />
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-text-dim">Mean Time to Repair</span>
+            <Clock className="w-4 h-4 text-warning" />
           </div>
           <div className="flex items-baseline gap-2 pt-1">
-            <span className="font-mono font-bold text-2xl text-[#f1f1f4] tabular-nums">
+            <span className="font-mono font-bold text-[26px] text-text tabular-nums">
               {avgMttr}
             </span>
-            <span className="text-xs text-[#5ee78a] font-mono">automated</span>
+            <span className="text-[12px] text-success font-mono font-medium">automated</span>
           </div>
-          <p className="text-[10px] text-[#5f6580] font-mono">From failure to PR</p>
+          <p className="text-[11px] text-text-dim font-mono">Failure to PR delivery</p>
         </div>
 
-        {/* Metric 4: Real User Repositories Count */}
+        {/* Metric 4: Protected Repos */}
         <div className="warp-card p-4 space-y-1">
-          <div className="flex items-center justify-between text-[#9aa1b3]">
-            <span className="text-[11px] font-mono uppercase tracking-wider">Protected Repos</span>
-            <ShieldCheck className="w-3.5 h-3.5 text-[#7553f6]" />
+          <div className="flex items-center justify-between text-text-muted">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-text-dim">Protected Repos</span>
+            <ShieldCheck className="w-4 h-4 text-accent" />
           </div>
           <div className="flex items-baseline gap-2 pt-1">
-            <span className="font-mono font-bold text-2xl text-[#f1f1f4] tabular-nums">
+            <span className="font-mono font-bold text-[26px] text-text tabular-nums">
               {protectedReposCount}
             </span>
-            <span className="text-xs text-[#5ee78a] font-mono">GitHub API</span>
+            <span className="text-[12px] text-success font-mono font-medium">GitHub</span>
           </div>
-          <p className="text-[10px] text-[#5f6580] font-mono">Accessible repositories</p>
+          <p className="text-[11px] text-text-dim font-mono">Scoped to your account</p>
         </div>
       </div>
 
-      {/* Taskmaster DevOps Radar & Flaky Test Intelligence */}
+      {/* CI Health Radar & Flaky Test Intelligence */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         {/* Radar Health Card */}
-        <div className="warp-card p-5 space-y-4 border border-[#232838] bg-[#161a25]">
+        <div className="warp-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-[#7553f6] animate-pulse" />
-              <span className="font-mono text-xs font-bold text-[#f1f1f4]">
+              <Radio className="w-4 h-4 text-accent" />
+              <span className="font-mono text-[13px] font-bold text-text">
                 CI Health Radar
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded bg-[#5ee78a]/20 text-[#5ee78a] border border-[#5ee78a]/30 text-xs font-mono font-bold">
-              Grade {radarData?.health_score || 'A+'}
+            <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-surface-2 text-success border border-border-strong">
+              Grade {radarData?.health_score || 'A'}
             </span>
           </div>
 
-          <div className="space-y-2 text-xs font-mono text-[#9aa1b3]">
-            <div className="flex justify-between py-1 border-b border-[#232838]">
-              <span>Active Branch Watch</span>
-              <span className="text-[#f1f1f4]">main</span>
+          <div className="space-y-1.5 text-[12px] font-mono text-text-muted">
+            <div className="flex justify-between py-1 border-b border-border">
+              <span>Active Branch</span>
+              <span className="text-text font-medium">main</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-[#232838]">
+            <div className="flex justify-between py-1 border-b border-border">
               <span>MTTR Target</span>
-              <span className="text-[#5ee78a]">&lt; 30s (Avg: 12.4s)</span>
+              <span className="text-success font-medium">&lt; 30s (Avg: 12.4s)</span>
             </div>
             <div className="flex justify-between py-1">
-              <span>Auto-Heal Status</span>
-              <span className="text-[#7553f6]">Autonomous Active</span>
+              <span>Firestore Status</span>
+              <span className="text-accent font-medium">Connected</span>
             </div>
           </div>
 
           <button
             onClick={onTriggerExistingCI}
             disabled={triggering}
-            className="w-full btn-warp-secondary py-2 text-xs font-mono flex items-center justify-center gap-1.5"
+            className="w-full btn-secondary py-2 text-[12px] font-mono flex items-center justify-center gap-2"
           >
-            <Zap className="w-3.5 h-3.5 text-[#7553f6]" />
-            Heal Branch PR Failures
+            <Zap className="w-3.5 h-3.5 text-accent" />
+            Trigger Health Check
           </button>
         </div>
 
         {/* Flaky Test Intelligence */}
-        <div className="lg:col-span-2 warp-card p-5 space-y-4 border border-[#232838] bg-[#161a25]">
+        <div className="lg:col-span-2 warp-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bug className="w-4 h-4 text-[#ff7a59]" />
-              <span className="font-mono text-xs font-bold text-[#f1f1f4]">
+              <Bug className="w-4 h-4 text-warning" />
+              <span className="font-mono text-[13px] font-bold text-text">
                 Flaky Test Radar & Regression Watch
               </span>
             </div>
-            <span className="text-[10px] font-mono text-[#5f6580]">
-              Automated Quarantine Watch
+            <span className="text-[11px] font-mono text-text-dim">
+              Automated Monitor
             </span>
           </div>
 
@@ -218,22 +215,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             ]).map((t: any, idx: number) => (
               <div
                 key={idx}
-                className="p-2.5 rounded-lg bg-[#11141d] border border-[#232838] flex items-center justify-between text-xs font-mono"
+                className="p-2.5 rounded-[8px] bg-bg-alt border border-border flex items-center justify-between text-[12px] font-mono"
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#ff7a59]" />
-                  <div>
-                    <span className="text-[#f1f1f4] font-medium block truncate max-w-[280px]">
+                  <span className="w-2 h-2 rounded-full bg-warning flex-shrink-0" />
+                  <div className="truncate">
+                    <span className="text-text font-medium block truncate max-w-[260px]">
                       {t.test_name}
                     </span>
-                    <span className="text-[10px] text-[#5f6580] block truncate max-w-[280px]">
+                    <span className="text-[11px] text-text-dim block truncate max-w-[260px]">
                       {t.file_path}
                     </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-[#ff7a59] font-bold block">{t.fail_rate}</span>
-                  <span className="text-[9px] text-[#5ee78a]">Protected by AutoPatch</span>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-[11px] text-warning font-bold block tabular-nums">{t.fail_rate}</span>
+                  <span className="text-[10px] text-text-dim">Monitored</span>
                 </div>
               </div>
             ))}
@@ -245,12 +242,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* Sentry Left-Border Alert Rows for Incidents */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs font-bold text-[#f1f1f4] uppercase tracking-wider">
+          <span className="font-mono text-[12px] font-bold text-text uppercase tracking-wider">
             Recent CI Incidents & Self-Healing Traces
           </span>
           <button
             onClick={onNavigateToIncidents}
-            className="text-xs font-mono text-[#7553f6] hover:text-[#8967ff] flex items-center gap-1"
+            className="text-[12px] font-mono text-accent hover:text-accent-hover flex items-center gap-1 transition-colors"
           >
             View All ({runs.length}) <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -258,11 +255,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
         <div className="space-y-2">
           {runs.length === 0 ? (
-            <div className="warp-card p-8 text-center space-y-2">
-              <p className="text-xs font-mono text-[#9aa1b3]">No active CI incident traces recorded.</p>
+            <div className="warp-card p-8 text-center space-y-3 bg-surface border border-border">
+              <div className="w-10 h-10 rounded-[8px] bg-accent-soft/20 border border-border flex items-center justify-center mx-auto text-accent-soft">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <p className="text-[13px] font-mono text-text-muted">No active CI incident traces recorded.</p>
               <button
                 onClick={onTriggerExistingCI}
-                className="btn-warp-primary text-xs"
+                className="btn-primary text-[12px]"
               >
                 Trigger Self-Healing Check
               </button>
@@ -272,30 +272,30 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div
                 key={runId}
                 onClick={() => onSelectRun(runId)}
-                className="sentry-alert-row-success p-3.5 flex items-center justify-between cursor-pointer hover:bg-[#1e2331] transition-colors"
+                className="alert-row-success p-3.5 flex items-center justify-between cursor-pointer hover:bg-surface-2/60 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded bg-[#5ee78a]/20 flex items-center justify-center text-[#5ee78a] font-mono text-xs">
+                  <div className="w-6 h-6 rounded-[6px] bg-success/15 border border-success/30 flex items-center justify-center text-success font-mono text-[11px]">
                     ✓
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-[#f1f1f4]">
+                      <span className="text-[12px] font-mono font-bold text-text">
                         Run #{runId}
                       </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#11141d] text-[#5ee78a] border border-[#2e3447]">
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-bg-alt text-success border border-border">
                         PR_DELIVERED
                       </span>
                     </div>
-                    <p className="text-[11px] font-mono text-[#5f6580] mt-0.5">
+                    <p className="text-[11px] font-mono text-text-dim mt-0.5">
                       AutoPatch Autonomous Repair • Google ADK + Cloud Build
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs font-mono text-[#9aa1b3]">
-                  <span className="text-[11px] text-[#5ee78a]">100% pass</span>
-                  <span className="text-[#7553f6] flex items-center gap-1 font-medium">
+                <div className="flex items-center gap-3 text-[12px] font-mono text-text-muted">
+                  <span className="text-[11px] text-success font-medium">100% pass</span>
+                  <span className="text-accent group-hover:text-accent-hover flex items-center gap-1 font-medium transition-colors">
                     Inspect <ChevronRight className="w-3.5 h-3.5" />
                   </span>
                 </div>

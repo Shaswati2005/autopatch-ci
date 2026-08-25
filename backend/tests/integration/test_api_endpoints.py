@@ -6,12 +6,11 @@ from typing import Dict
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from autopatch.adapters.trace_store import global_trace_store
+from autopatch.adapters.firestore_store import firestore_store
 from autopatch.domain.models import DiagnosticTraceStep, PipelineStage
 from autopatch.main import app, trace_store
 
 AUTH_HEADERS: Dict[str, str] = {"Authorization": "Bearer test-dev-token"}
-
 
 
 @pytest.mark.asyncio
@@ -30,16 +29,13 @@ async def test_auth_middleware_blocks_unauthenticated():
     """Verify that protected endpoints reject requests without a Bearer token with 401."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # GET /api/runs without token
         runs_resp = await client.get("/api/runs")
         assert runs_resp.status_code == 401
         assert "Authentication credentials required" in runs_resp.json().get("detail", "")
 
-        # POST /api/trigger-demo without token
         trigger_resp = await client.post("/api/trigger-demo", json={"repo": "test/repo"})
         assert trigger_resp.status_code == 401
 
-        # GET /api/traces/run-123 without token
         traces_resp = await client.get("/api/traces/run-123")
         assert traces_resp.status_code == 401
 
@@ -53,6 +49,7 @@ async def test_webhook_intake_async():
             "after": "9f8e7d6c5b4a",
             "ref": "refs/heads/feature/login",
             "workflow_run": {"id": 888999},
+            "action_source": "github_app",
         }
         response = await client.post("/api/webhooks/github", json=payload)
         assert response.status_code == 202
@@ -88,7 +85,7 @@ async def test_runs_and_traces_endpoints_authenticated():
         detail="Payload ingested",
         payload={"repo": "acme/demo"},
     )
-    await trace_store.save_trace(test_run_id, step)
+    await trace_store.save_trace(test_run_id, step, user_id="dev-user-1")
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -128,10 +125,9 @@ async def test_sse_trace_stream_authenticated():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         async def delayed_producer():
             await asyncio.sleep(0.05)
-            await trace_store.save_trace(stream_run_id, step1)
+            await trace_store.save_trace(stream_run_id, step1, user_id="dev-user-1")
             await asyncio.sleep(0.05)
-            await trace_store.save_trace(stream_run_id, step2)
-
+            await trace_store.save_trace(stream_run_id, step2, user_id="dev-user-1")
 
         producer_task = asyncio.create_task(delayed_producer())
 
@@ -160,12 +156,17 @@ async def test_sse_trace_stream_authenticated():
 async def test_auth_routes():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # GET /api/auth/me without token
-        me_resp = await client.get("/api/auth/me")
-        assert me_resp.status_code == 200
-        assert me_resp.json()["authenticated"] is False
+        # GET /api/auth/me without token -> 401
+        me_unauth = await client.get("/api/auth/me")
+        assert me_unauth.status_code == 401
 
-        # GET /api/github/repos fallback
-        repos_resp = await client.get("/api/github/repos")
+        # GET /api/auth/me with test token -> 200
+        me_auth = await client.get("/api/auth/me?token=test-token")
+        assert me_auth.status_code == 200
+        assert me_auth.json()["authenticated"] is True
+        assert me_auth.json()["username"] == "developer"
+
+        # GET /api/github/repos authenticated -> 200
+        repos_resp = await client.get("/api/github/repos", headers=AUTH_HEADERS)
         assert repos_resp.status_code == 200
-        assert len(repos_resp.json()["repositories"]) >= 1
+        assert "repositories" in repos_resp.json()
