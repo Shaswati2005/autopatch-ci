@@ -1,6 +1,6 @@
 # 🤖 AutoPatch-CI: Autonomous CI/CD Self-Healing Agent
 
-<!-- CI Trigger: Build Verification Run v1.0.1 -->
+<!-- CI Trigger: Build Verification Run v1.0.2 -->
 > Powered by **Gemini 3.5 Flash**, **Google Cloud Platform (Cloud Run, Cloud Pub/Sub, Cloud Build)**, and **Hexagonal Architecture**.
 
 AutoPatch-CI is an autonomous DevOps agent that intercepts failing CI/CD pipeline runs (via GitHub Actions & GitHub App Webhooks), diagnoses build logs using Gemini 3.5 Flash, generates minimal code fixes along with regression unit tests, verifies the fixes inside an isolated sandbox, and automatically opens GitHub Pull Requests with detailed diagnostic reasoning traces.

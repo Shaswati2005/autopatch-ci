@@ -101,6 +101,10 @@ class CloudBuildVerificationAdapter(VerificationPort):
         except Exception:
             return None
 
+
+
+
+
     async def _run_isolated_pytest(
         self, event: CIFailureEvent, patch: GeneratedPatch
     ) -> VerificationResult:
@@ -110,6 +114,10 @@ class CloudBuildVerificationAdapter(VerificationPort):
 
         target_name = fix_file.file_path if fix_file else "main.py"
         test_name = test_file.file_path if test_file else "test_regression.py"
+
+
+
+        
 
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
