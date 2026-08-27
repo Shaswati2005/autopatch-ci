@@ -1,0 +1,51 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write' # Required for Workload Identity Federation
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Google Cloud Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        # --- FIX: Provide Workload Identity Federation configuration ---
+        # Replace these with your actual GCP project and Workload Identity Federation details
+        workload_identity_provider: 'projects/GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/GCP_WORKLOAD_IDENTITY_POOL_ID/providers/GCP_WORKLOAD_IDENTITY_PROVIDER_ID'
+        service_account: 'GCP_SERVICE_ACCOUNT_EMAIL'
+        # -----------------------------------------------------------
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt # Assuming a requirements.txt exists
+
+    - name: Run Tests
+      run: |
+        pytest # Assuming pytest is used for tests
+
+    - name: Example GCP Command (after auth)
+      run: |
+        gcloud auth list
+        gcloud config list project
+        # Add your GCP-related commands here, e.g., deploy to Cloud Run, GKE, etc.
+      # This step will now succeed because authentication is configured
