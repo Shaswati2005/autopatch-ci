@@ -10,7 +10,7 @@ FastAPI agent microservice implementing Hexagonal Architecture for CI/CD failure
 - `tests/`: Pytest unit test suite.
 
 ## Development & Local Execution
-```bash
+```b
 # 1. Install dependencies
 pip install -e .
 
