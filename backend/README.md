@@ -9,8 +9,8 @@ FastAPI agent microservice implementing Hexagonal Architecture for CI/CD failure
 - `src/autopatch/main.py`: FastAPI server routes (`/api/webhooks/github`, `/api/trigger-demo`, `/api/traces/{run_id}`).
 - `tests/`: Pytest unit test suite.
 
-## Development & Local Execution
-```b
+## Development & Local exe 
+```
 # 1. Install dependencies
 pip install -e .
 
